@@ -1,6 +1,8 @@
+[node]
+# set bandwidth limit to 2MB/s.
+bandwidth_limit = 2
 
 [node.websocket]
-
 # WebSocket server bind address.
 # type:string,ip
 address = "::ffff:0.0.0.0"
