@@ -1380,6 +1380,10 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 
 						size_t count{ 0 };
 
+						size_t updated{ 0 };
+
+						size_t matched{ 0 };
+
 						size_t step (std::max<size_t> (10, std::pow (10.0f, std::floor (std::log10 (block_count / 10.0)))));
 						std::cout << "progress every " << step << " blocks..." << std::endl;
 
@@ -1395,11 +1399,14 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 									block->sideband_set (sideband_with_stamp);
 									node.node->store.block.put (transaction, i->first, *block);
 									transaction.commit();
+									updated++;
+								} else {
+									matched++;
 								}
 
 								if (count > 0 && count % step == 0 || count == block_count)
 								{
-									std::cout << count << "/" << block_count << std::endl;
+									std::cout << count << "/" << block_count << " updated:" << updated << " matched:" << matched << std::endl;
 								}
 							}
 							else
