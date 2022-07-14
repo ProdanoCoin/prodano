@@ -1373,13 +1373,16 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 					stream.close ();
 					if (!ec)
 					{
-						std::cout << block_count << " block_count" << std::endl;
-						std::cout << step << " step" << std::endl;
 						std::cout << "Upgrading database..." << std::endl;
 
 						auto block_count (pairs.size ());
+						std::cout << block_count << " block_count" << std::endl;
+
 						size_t count{ 0 };
+						
 						size_t step (std::max<size_t> (10, std::pow (10.0f, std::floor (std::log10 (block_count / 10.0)))));
+						std::cout << step << " step" << std::endl;
+
 						auto transaction (node.node->store.tx_begin_write ());
 						for (auto i (pairs.begin ()), n (pairs.end ()); i != n; ++i, ++count)
 						{
