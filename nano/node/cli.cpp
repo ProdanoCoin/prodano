@@ -1329,9 +1329,9 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 					std::cout << "This may take a while..." << std::endl;
 
 					boost::filesystem::path data_path = vm.count ("data_path") ? boost::filesystem::path (vm["data_path"].as<std::string> ()) : nano::working_path ();
-					auto transaction (inactive_node->node->store.tx_begin_read ());
+					auto transaction (node.node->store.tx_begin_read ());
 					std::vector<std::pair<nano::block_hash, uint64_t>> pairs;
-					pairs.reserve (inactive_node->node->store.block.count (transaction));
+					pairs.reserve (node.node->store.block.count (transaction));
 
 					std::cout << "Reading file..." << std::endl;
 					std::stringstream contents;
@@ -1378,16 +1378,16 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 						auto block_count (pairs.size ());
 						size_t count{ 0 };
 						size_t step (std::max<size_t> (10, std::pow (10.0f, std::floor (std::log10 (block_count / 10.0)))));
-						auto transaction (inactive_node->node->store.tx_begin_write ());
+						auto transaction (node.node->store.tx_begin_write ());
 						for (auto i (pairs.begin ()), n (pairs.end ()); i != n; ++i, ++count)
 						{
-							auto block (inactive_node->node->store.block.get (transaction, i->first));
+							auto block (node.node->store.block.get (transaction, i->first));
 							if (block)
 							{
 								auto sideband_with_stamp = block->sideband ();
 								sideband_with_stamp.timestamp = i->second;
 								block->sideband_set (sideband_with_stamp);
-								inactive_node->node->store.block.put (transaction, i->first, *block);
+								node.node->store.block.put (transaction, i->first, *block);
 
 								if (count > 0 && count % step == 0 || count == block_count)
 								{
