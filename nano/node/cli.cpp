@@ -1373,6 +1373,8 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 					stream.close ();
 					if (!ec)
 					{
+						std::cout << block_count << " block_count" << std::endl;
+						std::cout << step << " step" << std::endl;
 						std::cout << "Upgrading database..." << std::endl;
 
 						auto block_count (pairs.size ());
@@ -1427,6 +1429,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 		auto timestamps_path = data_path / "timestamps.csv";
 
 		std::cout << "Exporting timestamps in " << data_path << std::endl;
+		std::cout << accounts << " accounts" << std::endl;
 		std::cout << "This may take a while..." << std::endl;
 
 		auto transaction (inactive_node->node->store.tx_begin_read ());
@@ -1439,6 +1442,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 			pairs.reserve (inactive_node->node->store.block.count (transaction));
 
 			std::cout << "Reading database..." << std::endl;
+			std::cout << "progress every " << step << " steps..." << std::endl;
 
 			for (auto i (inactive_node->node->store.account.begin (transaction)), n (inactive_node->node->store.account.end ()); i != n; ++i, ++count)
 			{
