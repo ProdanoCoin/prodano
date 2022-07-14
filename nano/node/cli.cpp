@@ -1390,9 +1390,12 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 							if (block)
 							{
 								auto sideband_with_stamp = block->sideband ();
-								sideband_with_stamp.timestamp = i->second;
-								block->sideband_set (sideband_with_stamp);
-								node.node->store.block.put (transaction, i->first, *block);
+								if(sideband_with_stamp.timestamp != i->second) {
+									sideband_with_stamp.timestamp = i->second;
+									block->sideband_set (sideband_with_stamp);
+									node.node->store.block.put (transaction, i->first, *block);
+									transaction.commit();
+								}
 
 								if (count > 0 && count % step == 0 || count == block_count)
 								{
