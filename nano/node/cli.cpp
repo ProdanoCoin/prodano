@@ -1379,7 +1379,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 						std::cout << block_count << " block_count" << std::endl;
 
 						size_t count{ 0 };
-						
+
 						size_t step (std::max<size_t> (10, std::pow (10.0f, std::floor (std::log10 (block_count / 10.0)))));
 						std::cout << step << " step" << std::endl;
 
@@ -1432,11 +1432,13 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 		auto timestamps_path = data_path / "timestamps.csv";
 
 		std::cout << "Exporting timestamps in " << data_path << std::endl;
-		std::cout << accounts << " accounts" << std::endl;
 		std::cout << "This may take a while..." << std::endl;
 
 		auto transaction (inactive_node->node->store.tx_begin_read ());
+
 		auto accounts (inactive_node->node->store.account.count (transaction));
+		std::cout << accounts << " accounts" << std::endl;
+
 		if (accounts > 0)
 		{
 			size_t count{ 0 };
