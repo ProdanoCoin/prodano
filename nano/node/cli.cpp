@@ -1387,9 +1387,9 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 						size_t step (std::max<size_t> (10, std::pow (10.0f, std::floor (std::log10 (block_count / 10.0)))));
 						std::cout << "progress every " << step << " blocks..." << std::endl;
 
-						auto transaction (node.node->store.tx_begin_write ());
 						for (auto i (pairs.begin ()), n (pairs.end ()); i != n; ++i, ++count)
 						{
+							auto transaction (node.node->store.tx_begin_write ());
 							auto block (node.node->store.block.get (transaction, i->first));
 							if (block)
 							{
