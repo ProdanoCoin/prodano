@@ -1487,7 +1487,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 				while (block != nullptr)
 				{
 					if ((block->sideband ().timestamp >= start_timestamp)
-						&& (block->sideband ().timestamp <= end_timestamp))
+					&& (block->sideband ().timestamp <= end_timestamp))
 					{
 						pairs.push_back (std::make_pair (hash, block->sideband ().timestamp));
 					}
