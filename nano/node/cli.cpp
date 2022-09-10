@@ -7,6 +7,7 @@
 #include <nano/node/node.hpp>
 
 #include <boost/format.hpp>
+#include <boost/lexical_cast.hpp>
 
 namespace
 {
@@ -88,6 +89,8 @@ void nano::add_node_options (boost::program_options::options_description & descr
 	("wallet", boost::program_options::value<std::string> (), "Defines <wallet> for other commands")
 	("force", boost::program_options::value<bool>(), "Bool to force command if allowed")
 	("use_defaults", "If present, the generate_config command will generate uncommented entries");
+	("start_timestamp", boost::program_options::value<std::string> (), "Defines <start_timestamp> for other commands")
+	("end_timestamp", boost::program_options::value<std::string> (), "Defines <start_timestamp> for other commands")
 	// clang-format on
 }
 
@@ -1444,6 +1447,19 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 		boost::filesystem::path data_path = vm.count ("data_path") ? boost::filesystem::path (vm["data_path"].as<std::string> ()) : nano::working_path ();
 		auto timestamps_path = data_path / "timestamps.csv";
 
+		uint64_t start_timestamp = nano::vote::timestamp_min;
+		uint64_t end_timestamp = nano::vote::timestamp_max;
+		if (vm.count ("start_timestamp") == 1)
+		{
+			std::string start_timestamp_str (vm["start_timestamp"].as<std::string> ());
+			start_timestamp = boost::lexical_cast<uint64_t> (start_timestamp_str);
+		}
+		if (vm.count ("end_timestamp") == 1)
+		{
+			std::string end_timestamp_str (vm["end_timestamp"].as<std::string> ());
+			end_timestamp = boost::lexical_cast<uint64_t> (end_timestamp_str);
+		}
+
 		std::cout << "Exporting timestamps in " << data_path << std::endl;
 		std::cout << "This may take a while..." << std::endl;
 
@@ -1470,7 +1486,8 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 				auto block (inactive_node->node->store.block.get (transaction, hash));
 				while (block != nullptr)
 				{
-					if (block->sideband ().timestamp != 0)
+					if ((block->sideband ().timestamp >= start_timestamp)
+						&& (block->sideband ().timestamp <= end_timestamp))
 					{
 						pairs.push_back (std::make_pair (hash, block->sideband ().timestamp));
 					}
