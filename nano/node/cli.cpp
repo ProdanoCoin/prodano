@@ -89,8 +89,8 @@ void nano::add_node_options (boost::program_options::options_description & descr
 	("wallet", boost::program_options::value<std::string> (), "Defines <wallet> for other commands")
 	("force", boost::program_options::value<bool>(), "Bool to force command if allowed")
 	("use_defaults", "If present, the generate_config command will generate uncommented entries");
-	("start_timestamp", boost::program_options::value<std::string> (), "Defines <start_timestamp> for other commands")
-	("end_timestamp", boost::program_options::value<std::string> (), "Defines <start_timestamp> for other commands")
+	("start_timestamp", boost::program_options::value<std::string> (), "Defines <start_timestamp> for other commands");
+	("end_timestamp", boost::program_options::value<std::string> (), "Defines <start_timestamp> for other commands");
 	// clang-format on
 }
 
