@@ -117,3 +117,4 @@ TEST (processing_queue, parallel)
 	ASSERT_TIMELY (3s, processed == count);
 	ASSERT_EQ (queue.size (), 0);
 }
+
