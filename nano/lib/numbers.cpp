@@ -5,10 +5,9 @@
 #include <nano/lib/utility.hpp>
 #include <nano/secure/common.hpp>
 
-#include <crypto/cryptopp/aes.h>
-#include <crypto/cryptopp/modes.h>
-
 #include <crypto/ed25519-donna/ed25519.h>
+#include <cryptopp/aes.h>
+#include <cryptopp/modes.h>
 
 namespace
 {
@@ -51,7 +50,7 @@ void nano::public_key::encode_account (std::string & destination_a) const
 		number_l >>= 5;
 		destination_a.push_back (account_encode (r));
 	}
-	destination_a.append ("_nab");
+	destination_a.append ("_onan"); // nano_
 	std::reverse (destination_a.begin (), destination_a.end ());
 }
 
@@ -87,15 +86,15 @@ bool nano::public_key::decode_account (std::string const & source_a)
 	auto error (source_a.size () < 5);
 	if (!error)
 	{
-		auto ban_prefix (source_a[0] == 'b' && source_a[1] == 'a' && source_a[2] == 'n' && (source_a[3] == '_' || source_a[3] == '-'));
-		auto nano_prefix (source_a[0] == 'b' && source_a[1] == 'a' && source_a[2] == 'n' && source_a[3] == 'o' && (source_a[4] == '_' || source_a[4] == '-'));
-		auto node_id_prefix = (source_a[0] == 'n' && source_a[1] == 'o' && source_a[2] == 'd' && source_a[3] == 'e' && source_a[4] == '_');
-		error = (ban_prefix && source_a.size () != 64) || (nano_prefix && source_a.size () != 65);
+		auto xrb_prefix (source_a[0] == 'x' && source_a[1] == 'r' && source_a[2] == 'b' && (source_a[3] == '_' || source_a[3] == '-'));
+		auto nano_prefix (source_a[0] == 'n' && source_a[1] == 'a' && source_a[2] == 'n' && source_a[3] == 'o' && (source_a[4] == '_' || source_a[4] == '-'));
+		auto node_id_prefix = (source_a[0] == 'b' && source_a[1] == 'o' && source_a[2] == 'd' && source_a[3] == 'e' && source_a[4] == '_');
+		error = (xrb_prefix && source_a.size () != 64) || (nano_prefix && source_a.size () != 65);
 		if (!error)
 		{
-			if (ban_prefix || nano_prefix || node_id_prefix)
+			if (xrb_prefix || nano_prefix || node_id_prefix)
 			{
-				auto i (source_a.begin () + (ban_prefix ? 4 : 5));
+				auto i (source_a.begin () + (xrb_prefix ? 4 : 5));
 				if (*i == '1' || *i == '3')
 				{
 					nano::uint512_t number_l;
@@ -150,11 +149,6 @@ nano::uint256_union::uint256_union (nano::uint256_t const & number_a)
 	boost::multiprecision::export_bits (number_a, bytes.rbegin (), 8, false);
 }
 
-bool nano::uint256_union::operator== (nano::uint256_union const & other_a) const
-{
-	return bytes == other_a.bytes;
-}
-
 // Construct a uint256_union = AES_ENC_CTR (cleartext, key, iv)
 void nano::uint256_union::encrypt (nano::raw_key const & cleartext, nano::raw_key const & key, uint128_union const & iv)
 {
@@ -173,11 +167,6 @@ std::string nano::uint256_union::to_string () const
 	std::string result;
 	encode_hex (result);
 	return result;
-}
-
-bool nano::uint256_union::operator< (nano::uint256_union const & other_a) const
-{
-	return std::memcmp (bytes.data (), other_a.bytes.data (), 32) < 0;
 }
 
 nano::uint256_union & nano::uint256_union::operator^= (nano::uint256_union const & other_a)
@@ -295,11 +284,6 @@ bool nano::uint256_union::decode_dec (std::string const & text)
 nano::uint256_union::uint256_union (uint64_t value0)
 {
 	*this = nano::uint256_t (value0);
-}
-
-bool nano::uint256_union::operator!= (nano::uint256_union const & other_a) const
-{
-	return !(*this == other_a);
 }
 
 bool nano::uint512_union::operator== (nano::uint512_union const & other_a) const
