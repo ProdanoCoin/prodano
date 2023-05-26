@@ -123,8 +123,7 @@ enum class error_rpc
 	requires_port_and_address,
 	rpc_control_disabled,
 	sign_hash_disabled,
-	source_not_found,
-	stopped
+	source_not_found
 };
 
 /** process_result related errors */

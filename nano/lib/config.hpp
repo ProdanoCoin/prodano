@@ -9,8 +9,6 @@
 #include <optional>
 #include <string>
 
-using namespace std::chrono_literals;
-
 namespace boost
 {
 namespace filesystem
@@ -125,13 +123,13 @@ enum class networks : uint16_t
 {
 	invalid = 0x0,
 	// Low work parameters, publicly known genesis key, dev IP ports
-	banano_dev_network = 0x5241, // 'B', 'A'
+	banano_dev_network = 0x4241, // 'B', 'A'
 	// Normal work parameters, secret beta genesis key, beta IP ports
-	banano_beta_network = 0x5242, // 'B', 'B'
+	banano_beta_network = 0x4242, // 'B', 'B'
 	// Normal work parameters, secret live key, live IP ports
-	banano_live_network = 0x5243, // 'B', 'C'
+	banano_live_network = 0x4258, // 'B', 'X'
 	// Normal work parameters, secret test genesis key, test IP ports
-	banano_test_network = 0x5258, // 'R', 'X'
+	banano_test_network = 0x4243, // 'B', 'C'
 };
 
 enum class work_version
@@ -198,7 +196,7 @@ public:
 	network_constants (nano::work_thresholds & work_, nano::networks network_a) :
 		current_network (network_a),
 		work (work_),
-		principal_weight_factor (1000), // 0.1% A representative is classified as principal based on its weight and this factor
+		principal_weight_factor (2000), // 0.2% A representative is classified as principal based on its weight and this factor
 		default_node_port (44000),
 		default_rpc_port (45000),
 		default_ipc_port (46000),
@@ -218,10 +216,10 @@ public:
 	{
 		if (is_live_network ())
 		{
-			default_node_port = 7075;
-			default_rpc_port = 7076;
-			default_ipc_port = 7077;
-			default_websocket_port = 7078;
+			default_node_port = 7071;
+			default_rpc_port = 7072;
+			default_ipc_port = 7073;
+			default_websocket_port = 7074;
 		}
 		else if (is_beta_network ())
 		{
@@ -247,11 +245,6 @@ public:
 			max_peers_per_subnetwork = max_peers_per_ip * 4;
 			peer_dump_interval = std::chrono::seconds (1);
 			vote_broadcast_interval = 500;
-			telemetry_request_cooldown = 500ms;
-			telemetry_cache_cutoff = 2000ms;
-			telemetry_request_interval = 500ms;
-			telemetry_broadcast_interval = 500ms;
-			optimistic_activation_delay = 2s;
 		}
 	}
 
@@ -294,18 +287,6 @@ public:
 	/** Time to wait before vote rebroadcasts for active elections (milliseconds) */
 	uint64_t vote_broadcast_interval;
 
-	/** We do not reply to telemetry requests made within cooldown period */
-	std::chrono::milliseconds telemetry_request_cooldown{ 1000 * 15 };
-	/** How often to request telemetry from peers */
-	std::chrono::milliseconds telemetry_request_interval{ 1000 * 60 };
-	/** How often to broadcast telemetry to peers */
-	std::chrono::milliseconds telemetry_broadcast_interval{ 1000 * 60 };
-	/** Telemetry data older than this value is considered stale */
-	std::chrono::milliseconds telemetry_cache_cutoff{ 1000 * 130 }; // 2 * `telemetry_broadcast_interval` + some margin
-
-	/** How much to delay activation of optimistic elections to avoid interfering with election scheduler */
-	std::chrono::seconds optimistic_activation_delay{ 30 };
-
 	/** Returns the network this object contains values for */
 	nano::networks network () const
 	{
@@ -332,19 +313,19 @@ public:
 		auto error{ false };
 		if (network_a == "live")
 		{
-			active_network = nano::networks::nano_live_network;
+			active_network = nano::networks::banano_live_network;
 		}
 		else if (network_a == "beta")
 		{
-			active_network = nano::networks::nano_beta_network;
+			active_network = nano::networks::banano_beta_network;
 		}
 		else if (network_a == "dev")
 		{
-			active_network = nano::networks::nano_dev_network;
+			active_network = nano::networks::banano_dev_network;
 		}
 		else if (network_a == "test")
 		{
-			active_network = nano::networks::nano_test_network;
+			active_network = nano::networks::banano_test_network;
 		}
 		else
 		{
@@ -362,19 +343,19 @@ public:
 
 	bool is_live_network () const
 	{
-		return current_network == nano::networks::nano_live_network;
+		return current_network == nano::networks::banano_live_network;
 	}
 	bool is_beta_network () const
 	{
-		return current_network == nano::networks::nano_beta_network;
+		return current_network == nano::networks::banano_beta_network;
 	}
 	bool is_dev_network () const
 	{
-		return current_network == nano::networks::nano_dev_network;
+		return current_network == nano::networks::banano_dev_network;
 	}
 	bool is_test_network () const
 	{
-		return current_network == nano::networks::nano_test_network;
+		return current_network == nano::networks::banano_test_network;
 	}
 
 	/** Initial value is ACTIVE_NETWORK compile flag, but can be overridden by a CLI flag */
@@ -383,8 +364,6 @@ public:
 	uint8_t const protocol_version = 0x13;
 	/** Minimum accepted protocol version */
 	uint8_t const protocol_version_min = 0x12;
-	/** Minimum accepted protocol version used when bootstrapping */
-	uint8_t const bootstrap_protocol_version_min = 0x13;
 };
 
 std::string get_node_toml_config_path (boost::filesystem::path const & data_path);

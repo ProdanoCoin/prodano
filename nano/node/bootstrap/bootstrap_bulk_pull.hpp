@@ -1,7 +1,8 @@
 #pragma once
 
+#include <nano/node/common.hpp>
 #include <nano/node/messages.hpp>
-#include <nano/node/transport/socket.hpp>
+#include <nano/node/socket.hpp>
 
 #include <unordered_set>
 

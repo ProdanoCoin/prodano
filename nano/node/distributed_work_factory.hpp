@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <functional>
+#include <mutex>
 #include <unordered_map>
 #include <vector>
 

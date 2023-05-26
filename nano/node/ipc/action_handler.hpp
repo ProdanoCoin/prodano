@@ -6,12 +6,19 @@
 
 #include <boost/optional.hpp>
 
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
+#include <type_traits>
 #include <unordered_map>
 
 #include <flatbuffers/flatbuffers.h>
 #include <flatbuffers/idl.h>
+#include <flatbuffers/minireflect.h>
+#include <flatbuffers/registry.h>
+#include <flatbuffers/util.h>
 
 namespace nano
 {

@@ -2,10 +2,15 @@
 
 #include <nano/lib/locks.hpp>
 #include <nano/lib/numbers.hpp>
+#include <nano/lib/timer.hpp>
+#include <nano/lib/utility.hpp>
 #include <nano/secure/common.hpp>
 
 #include <condition_variable>
+#include <memory>
+#include <queue>
 #include <thread>
+#include <vector>
 
 namespace nano
 {
@@ -27,12 +32,11 @@ public: // Config
 	};
 
 public:
-	hinted_scheduler (config const &, nano::node &, nano::vote_cache &, nano::active_transactions &, nano::online_reps &, nano::stats &);
+	explicit hinted_scheduler (config const &, nano::node &, nano::vote_cache &, nano::active_transactions &, nano::online_reps &, nano::stat &);
 	~hinted_scheduler ();
 
 	void start ();
 	void stop ();
-
 	/*
 	 * Notify about changes in AEC vacancy
 	 */
@@ -50,12 +54,12 @@ private: // Dependencies
 	nano::vote_cache & inactive_vote_cache;
 	nano::active_transactions & active;
 	nano::online_reps & online_reps;
-	nano::stats & stats;
+	nano::stat & stats;
 
 private:
 	config const config_m;
 
-	bool stopped{ false };
+	bool stopped;
 	nano::condition_variable condition;
 	mutable nano::mutex mutex;
 	std::thread thread;

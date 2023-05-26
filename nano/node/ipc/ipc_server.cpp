@@ -7,8 +7,10 @@
 #include <nano/lib/locks.hpp>
 #include <nano/lib/threading.hpp>
 #include <nano/lib/timer.hpp>
+#include <nano/node/common.hpp>
 #include <nano/node/ipc/action_handler.hpp>
 #include <nano/node/ipc/flatbuffers_handler.hpp>
+#include <nano/node/ipc/flatbuffers_util.hpp>
 #include <nano/node/ipc/ipc_server.hpp>
 #include <nano/node/json_handler.hpp>
 #include <nano/node/node.hpp>
@@ -19,6 +21,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <list>
 
 #include <flatbuffers/flatbuffers.h>
 
@@ -126,7 +129,7 @@ public:
 		};
 
 		static nano::mutex subscriber_mutex;
-		nano::unique_lock<nano::mutex> lock{ subscriber_mutex };
+		nano::unique_lock<nano::mutex> lock (subscriber_mutex);
 
 		if (!subscriber)
 		{

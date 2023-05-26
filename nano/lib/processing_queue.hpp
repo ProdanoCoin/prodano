@@ -6,7 +6,6 @@
 #include <nano/lib/threading.hpp>
 #include <nano/lib/utility.hpp>
 
-#include <algorithm>
 #include <condition_variable>
 #include <deque>
 #include <functional>
@@ -24,7 +23,6 @@ class processing_queue final
 {
 public:
 	using value_t = T;
-	using batch_t = std::deque<value_t>;
 
 	/**
 	 * @param thread_role Spawned processing threads will use this name
@@ -32,7 +30,7 @@ public:
 	 * @param max_queue_size Max number of items enqueued, items beyond this value will be discarded
 	 * @param max_batch_size Max number of elements processed in single batch, 0 for unlimited (default)
 	 */
-	processing_queue (nano::stats & stats, nano::stat::type stat_type, nano::thread_role::name thread_role, std::size_t thread_count, std::size_t max_queue_size, std::size_t max_batch_size = 0) :
+	processing_queue (nano::stat & stats, nano::stat::type stat_type, nano::thread_role::name thread_role, std::size_t thread_count, std::size_t max_queue_size, std::size_t max_batch_size = 0) :
 		stats{ stats },
 		stat_type{ stat_type },
 		thread_role{ thread_role },
@@ -44,8 +42,7 @@ public:
 
 	~processing_queue ()
 	{
-		// Threads must be stopped before destruction
-		debug_assert (threads.empty ());
+		stop ();
 	}
 
 	void start ()
@@ -53,7 +50,6 @@ public:
 		for (int n = 0; n < thread_count; ++n)
 		{
 			threads.emplace_back ([this] () {
-				nano::thread_role::set (thread_role);
 				run ();
 			});
 		}
@@ -61,10 +57,7 @@ public:
 
 	void stop ()
 	{
-		{
-			nano::lock_guard<nano::mutex> guard{ mutex };
-			stopped = true;
-		}
+		stopped = true;
 		condition.notify_all ();
 		for (auto & thread : threads)
 		{
@@ -73,23 +66,15 @@ public:
 		threads.clear ();
 	}
 
-	bool joinable () const
-	{
-		return std::any_of (threads.cbegin (), threads.cend (), [] (auto const & thread) {
-			return thread.joinable ();
-		});
-	}
-
 	/**
 	 * Queues item for batch processing
 	 */
-	template <class Item>
-	void add (Item && item)
+	void add (T && item)
 	{
 		nano::unique_lock<nano::mutex> lock{ mutex };
 		if (queue.size () < max_queue_size)
 		{
-			queue.push_back (std::forward<T> (item));
+			queue.emplace_back (std::forward<T> (item));
 			lock.unlock ();
 			condition.notify_one ();
 			stats.inc (stat_type, nano::stat::detail::queue);
@@ -146,7 +131,7 @@ private:
 			for (int n = 0; n < max_batch_size; ++n)
 			{
 				debug_assert (!queue.empty ());
-				queue_l.push_back (std::move (queue.front ()));
+				queue_l.emplace_back (std::move (queue.front ()));
 				queue.pop_front ();
 			}
 			return queue_l;
@@ -155,6 +140,7 @@ private:
 
 	void run ()
 	{
+		nano::thread_role::set (thread_role);
 		nano::unique_lock<nano::mutex> lock{ mutex };
 		while (!stopped)
 		{
@@ -170,10 +156,10 @@ private:
 	}
 
 public:
-	std::function<void (batch_t &)> process_batch{ [] (auto &) { debug_assert (false, "processing queue callback empty"); } };
+	std::function<void (std::deque<value_t> &)> process_batch{ [] (auto &) { debug_assert (false, "processing queue callback empty"); } };
 
 private:
-	nano::stats & stats;
+	nano::stat & stats;
 
 	const nano::stat::type stat_type;
 	const nano::thread_role::name thread_role;
@@ -183,8 +169,7 @@ private:
 
 private:
 	std::deque<value_t> queue;
-
-	bool stopped{ false };
+	std::atomic<bool> stopped{ false };
 	mutable nano::mutex mutex;
 	nano::condition_variable condition;
 	std::vector<std::thread> threads;

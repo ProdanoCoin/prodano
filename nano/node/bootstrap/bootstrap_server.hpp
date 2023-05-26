@@ -5,6 +5,7 @@
 #include <nano/node/messages.hpp>
 
 #include <memory>
+#include <queue>
 #include <utility>
 
 namespace nano
@@ -29,7 +30,7 @@ public:
 	using request_t = std::pair<nano::asc_pull_req, std::shared_ptr<nano::transport::channel>>; // <request, response channel>
 
 public:
-	bootstrap_server (nano::store &, nano::ledger &, nano::network_constants const &, nano::stats &);
+	bootstrap_server (nano::store &, nano::ledger &, nano::network_constants const &, nano::stat &);
 	~bootstrap_server ();
 
 	void start ();
@@ -74,7 +75,7 @@ private: // Dependencies
 	nano::store & store;
 	nano::ledger & ledger;
 	nano::network_constants const & network_constants;
-	nano::stats & stats;
+	nano::stat & stats;
 
 private:
 	processing_queue<request_t> request_queue;

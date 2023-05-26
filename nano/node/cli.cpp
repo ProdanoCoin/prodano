@@ -7,6 +7,7 @@
 #include <nano/node/node.hpp>
 
 #include <boost/format.hpp>
+#include <boost/lexical_cast.hpp>
 
 namespace
 {
@@ -30,6 +31,10 @@ std::string nano::error_cli_messages::message (int ev) const
 			return "Database write error";
 		case nano::error_cli::reading_config:
 			return "Config file read error";
+		case nano::error_cli::disable_all_network:
+			return "Flags --disable_tcp_realtime and --disable_udp cannot be used together";
+		case nano::error_cli::ambiguous_udp_options:
+			return "Flags --disable_udp and --enable_udp cannot be used together";
 		case nano::error_cli::ambiguous_pruning_voting_options:
 			return "Flag --enable_pruning and enable_voting in node config cannot be used together";
 	}
@@ -71,6 +76,9 @@ void nano::add_node_options (boost::program_options::options_description & descr
 	("wallet_remove", "Remove <account> from <wallet>")
 	("wallet_representative_get", "Prints default representative for <wallet>")
 	("wallet_representative_set", "Set <account> as default representative for <wallet>")
+	("timestamps_import", "Imports a CSV file, overwriting the timestamps recorded in the database (warning: high resource usage).")
+	("timestamps_export", "Writes a CSV file with the local timestamp recorded for each hash with timestamp in the database.")
+	("timestamps_update_frontiers", "Updates the 'modified' timestamp of each account chain with the stamps of each frontier")
 	("all", "Only valid with --final_vote_clear")
 	("account", boost::program_options::value<std::string> (), "Defines <account> for other commands")
 	("root", boost::program_options::value<std::string> (), "Defines <root> for other commands")
@@ -80,10 +88,10 @@ void nano::add_node_options (boost::program_options::options_description & descr
 	("password", boost::program_options::value<std::string> (), "Defines <password> for other commands")
 	("wallet", boost::program_options::value<std::string> (), "Defines <wallet> for other commands")
 	("force", boost::program_options::value<bool>(), "Bool to force command if allowed")
-	("use_defaults", "If present, the generate_config command will generate uncommented entries");
-	("timestamps_import", "Imports a CSV file, overwriting the timestamps recorded in the database (warning: high resource usage).")
-	("timestamps_export", "Writes a CSV file with the local timestamp recorded for each hash with timestamp in the database.")
-	("timestamps_update_frontiers", "Updates the 'modified' timestamp of each account chain with the stamps of each frontier")
+	("use_defaults", "If present, the generate_config command will generate uncommented entries")
+	("start_timestamp", boost::program_options::value<std::string> (), "Defines <start_timestamp> for other commands")
+	("end_timestamp", boost::program_options::value<std::string> (), "Defines <start_timestamp> for other commands")
+	;
 	// clang-format on
 }
 
@@ -97,10 +105,12 @@ void nano::add_node_flag_options (boost::program_options::options_description & 
 		("disable_legacy_bootstrap", "Disables legacy bootstrap")
 		("disable_wallet_bootstrap", "Disables wallet lazy bootstrap")
 		("disable_ongoing_bootstrap", "Disable ongoing bootstrap")
-		("disable_ascending_bootstrap", "Disable ascending bootstrap")
 		("disable_rep_crawler", "Disable rep crawler")
 		("disable_request_loop", "Disable request loop")
 		("disable_bootstrap_listener", "Disables bootstrap processing for TCP listener (not including realtime network TCP connections)")
+		("disable_tcp_realtime", "Disables TCP realtime network")
+		("disable_udp", "(Deprecated) UDP is disabled by default")
+		("enable_udp", "Enables UDP realtime network")
 		("disable_unchecked_cleanup", "Disables periodic cleanup of old records from unchecked table")
 		("disable_unchecked_drop", "Disables drop of unchecked table at startup")
 		("disable_providing_telemetry_metrics", "Disable using any node information in the telemetry_ack messages.")
@@ -126,14 +136,23 @@ std::error_code nano::update_flags (nano::node_flags & flags_a, boost::program_o
 	flags_a.disable_legacy_bootstrap = (vm.count ("disable_legacy_bootstrap") > 0);
 	flags_a.disable_wallet_bootstrap = (vm.count ("disable_wallet_bootstrap") > 0);
 	flags_a.disable_ongoing_bootstrap = (vm.count ("disable_ongoing_bootstrap") > 0);
-	flags_a.disable_ascending_bootstrap = (vm.count ("disable_ascending_bootstrap") > 0);
 	flags_a.disable_rep_crawler = (vm.count ("disable_rep_crawler") > 0);
 	flags_a.disable_request_loop = (vm.count ("disable_request_loop") > 0);
 	if (!flags_a.inactive_node)
 	{
 		flags_a.disable_bootstrap_listener = (vm.count ("disable_bootstrap_listener") > 0);
+		flags_a.disable_tcp_realtime = (vm.count ("disable_tcp_realtime") > 0);
 	}
 	flags_a.disable_providing_telemetry_metrics = (vm.count ("disable_providing_telemetry_metrics") > 0);
+	if ((vm.count ("disable_udp") > 0) && (vm.count ("enable_udp") > 0))
+	{
+		ec = nano::error_cli::ambiguous_udp_options;
+	}
+	flags_a.disable_udp = (vm.count ("enable_udp") == 0);
+	if (flags_a.disable_tcp_realtime && flags_a.disable_udp)
+	{
+		ec = nano::error_cli::disable_all_network;
+	}
 	flags_a.disable_unchecked_cleanup = (vm.count ("disable_unchecked_cleanup") > 0);
 	flags_a.disable_unchecked_drop = (vm.count ("disable_unchecked_drop") > 0);
 	flags_a.disable_block_processor_unchecked_deletion = (vm.count ("disable_block_processor_unchecked_deletion") > 0);
@@ -218,7 +237,7 @@ bool copy_database (boost::filesystem::path const & data_path, boost::program_op
 		auto & store (node.node->store);
 		if (vm.count ("unchecked_clear"))
 		{
-			node.node->unchecked.clear ();
+			node.node->unchecked.clear (store.tx_begin_write ());
 		}
 		if (vm.count ("clear_send_ids"))
 		{
@@ -496,7 +515,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 		if (!node.node->init_error ())
 		{
 			auto transaction (node.node->store.tx_begin_write ());
-			node.node->unchecked.clear ();
+			node.node->unchecked.clear (transaction);
 			std::cout << "Unchecked blocks deleted" << std::endl;
 		}
 		else
@@ -669,8 +688,6 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 			valid_type = true;
 			nano::network_params network_params{ nano::network_constants::active_network };
 			nano::daemon_config config{ data_path, network_params };
-			// set the peering port to the default value so that it is printed in the example toml file
-			config.node.peering_port = network_params.network.default_node_port;
 			config.serialize_toml (toml);
 		}
 		else if (type == "rpc")
@@ -692,7 +709,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 
 		if (valid_type)
 		{
-			std::cout << "# This is an example configuration file for Nano. Visit https://docs.nano.org/running-a-node/configuration/ for more information.\n#\n"
+			std::cout << "# This is an example configuration file for Banano. Visit https://docs.nano.org/running-a-node/configuration/ for more information.\n#\n"
 					  << "# Fields may need to be defined in the context of a [category] above them.\n"
 					  << "# The desired configuration changes should be placed in config-" << type << ".toml in the node data path.\n"
 					  << "# To change a value from its default, uncomment (erasing #) the corresponding field.\n"
@@ -1109,7 +1126,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 							{
 								bool error (true);
 								{
-									nano::lock_guard<nano::mutex> lock{ node->wallets.mutex };
+									nano::lock_guard<nano::mutex> lock (node->wallets.mutex);
 									auto transaction (node->wallets.tx_begin_write ());
 									nano::wallet wallet (error, transaction, node->wallets, wallet_id.to_string (), contents.str ());
 								}
@@ -1121,7 +1138,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 								else
 								{
 									node->wallets.reload ();
-									nano::lock_guard<nano::mutex> lock{ node->wallets.mutex };
+									nano::lock_guard<nano::mutex> lock (node->wallets.mutex);
 									release_assert (node->wallets.items.find (wallet_id) != node->wallets.items.end ());
 									std::cout << "Import completed\n";
 								}
@@ -1299,6 +1316,240 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 		{
 			std::cerr << "wallet_representative_set requires one <wallet> option\n";
 			ec = nano::error_cli::invalid_arguments;
+		}
+	}
+	else if (vm.count ("timestamps_import") == 1)
+	{
+		if (vm.count ("file") == 1)
+		{
+			auto node_flags = nano::inactive_node_flag_defaults ();
+			node_flags.read_only = false;
+			nano::update_flags (node_flags, vm);
+			nano::inactive_node node (data_path, node_flags);
+			if (!node.node->init_error ())
+			{
+				std::string filename (vm["file"].as<std::string> ());
+				std::ifstream stream;
+				stream.open (filename.c_str ());
+				if (!stream.fail ())
+				{
+					std::cout << "Importing timestamps from " << filename << std::endl;
+					std::cout << "This may take a while..." << std::endl;
+
+					boost::filesystem::path data_path = vm.count ("data_path") ? boost::filesystem::path (vm["data_path"].as<std::string> ()) : nano::working_path ();
+					auto transaction (node.node->store.tx_begin_read ());
+					std::vector<std::pair<nano::block_hash, uint64_t>> pairs;
+					pairs.reserve (node.node->store.block.count (transaction));
+
+					std::cout << "Reading file..." << std::endl;
+					std::stringstream contents;
+					contents << stream.rdbuf ();
+					std::string line, hash, timestamp;
+					try
+					{
+						while (std::getline (contents, line, '\n'))
+						{
+							std::istringstream liness (line);
+							if (std::getline (liness, hash, ',') && std::getline (liness, timestamp, ','))
+							{
+								pairs.push_back (std::make_pair (nano::block_hash (hash), std::stoull (timestamp)));
+							}
+							else
+							{
+								std::cerr << "Failure while reading the file, in line " << pairs.size () + 1 << std::endl;
+								ec = nano::error_cli::generic;
+								break;
+							}
+						}
+					}
+					catch (const std::invalid_argument & ex)
+					{
+						std::cerr << "Failure while reading the file, timestamp is invalid in line " << pairs.size () + 1 << std::endl;
+						ec = nano::error_cli::generic;
+					}
+					catch (const std::out_of_range & ex)
+					{
+						std::cerr << "Failure while reading the file, timestamp is invalid in line " << pairs.size () + 1 << std::endl;
+						ec = nano::error_cli::generic;
+					}
+					catch (...)
+					{
+						std::cerr << "Unknown error while reading the file, in line " << pairs.size () + 1 << std::endl;
+						ec = nano::error_cli::generic;
+					}
+
+					stream.close ();
+					if (!ec)
+					{
+						std::cout << "Upgrading database..." << std::endl;
+
+						auto block_count (pairs.size ());
+						std::cout << block_count << " block_count" << std::endl;
+
+						size_t count{ 0 };
+
+						size_t updated{ 0 };
+
+						size_t matched{ 0 };
+
+						size_t step (std::max<size_t> (10, std::pow (10.0f, std::floor (std::log10 (block_count / 10.0)))));
+						std::cout << "progress every " << step << " blocks..." << std::endl;
+
+						for (auto i (pairs.begin ()), n (pairs.end ()); i != n; ++i, ++count)
+						{
+							auto transaction (node.node->store.tx_begin_write ());
+							auto block (node.node->store.block.get (transaction, i->first));
+							if (block)
+							{
+								auto sideband_with_stamp = block->sideband ();
+								if (sideband_with_stamp.timestamp != i->second)
+								{
+									sideband_with_stamp.timestamp = i->second;
+									block->sideband_set (sideband_with_stamp);
+									node.node->store.block.put (transaction, i->first, *block);
+									transaction.commit ();
+									updated++;
+								}
+								else
+								{
+									matched++;
+								}
+
+								if (count > 0 && count % step == 0 || count == block_count)
+								{
+									std::cout << count << "/" << block_count << " updated:" << updated << " matched:" << matched << std::endl;
+								}
+							}
+							else
+							{
+								std::cerr << "Skipping hash not in database: " << i->first.to_string () << std::endl;
+							}
+						}
+						std::cout << "Completed importing timestamps" << std::endl;
+					}
+				}
+				else
+				{
+					std::cerr << "Unable to open <file>\n";
+					ec = nano::error_cli::invalid_arguments;
+				}
+			}
+			else
+			{
+				database_write_lock_error (ec);
+			}
+		}
+		else
+		{
+			std::cerr << "timestamps_import requires one <file> option\n";
+			ec = nano::error_cli::invalid_arguments;
+		}
+	}
+	else if (vm.count ("timestamps_export") == 1)
+	{
+		auto inactive_node = nano::default_inactive_node (data_path, vm);
+
+		boost::filesystem::path data_path = vm.count ("data_path") ? boost::filesystem::path (vm["data_path"].as<std::string> ()) : nano::working_path ();
+		auto timestamps_path = data_path / "timestamps.csv";
+
+		uint64_t start_timestamp = nano::vote::timestamp_min;
+		uint64_t end_timestamp = nano::vote::timestamp_max;
+		if (vm.count ("start_timestamp") == 1)
+		{
+			std::string start_timestamp_str (vm["start_timestamp"].as<std::string> ());
+			start_timestamp = boost::lexical_cast<uint64_t> (start_timestamp_str);
+		}
+		if (vm.count ("end_timestamp") == 1)
+		{
+			std::string end_timestamp_str (vm["end_timestamp"].as<std::string> ());
+			end_timestamp = boost::lexical_cast<uint64_t> (end_timestamp_str);
+		}
+
+		std::cout << "Exporting timestamps in " << data_path << std::endl;
+		std::cout << "This may take a while..." << std::endl;
+
+		auto transaction (inactive_node->node->store.tx_begin_read ());
+
+		auto accounts (inactive_node->node->store.account.count (transaction));
+		std::cout << accounts << " accounts" << std::endl;
+
+		if (accounts > 0)
+		{
+			size_t count{ 0 };
+
+			size_t step (std::max<size_t> (10, std::pow (10.0f, std::floor (std::log10 (accounts / 10.0)))));
+			std::cout << "progress reported every " << step << " accounts..." << std::endl;
+
+			std::vector<std::pair<nano::block_hash, uint64_t>> pairs;
+			pairs.reserve (inactive_node->node->store.block.count (transaction));
+
+			std::cout << "Reading database..." << std::endl;
+
+			for (auto i (inactive_node->node->store.account.begin (transaction)), n (inactive_node->node->store.account.end ()); i != n; ++i, ++count)
+			{
+				auto hash (i->second.head);
+				auto block (inactive_node->node->store.block.get (transaction, hash));
+				while (block != nullptr)
+				{
+					if ((block->sideband ().timestamp >= start_timestamp)
+					&& (block->sideband ().timestamp <= end_timestamp))
+					{
+						pairs.push_back (std::make_pair (hash, block->sideband ().timestamp));
+					}
+					hash = block->previous ();
+					block = inactive_node->node->store.block.get (transaction, hash);
+				}
+				if (count > 0 && count % step == 0 || count == accounts)
+				{
+					std::cout << count << "/" << accounts << std::endl;
+				}
+			}
+			if (pairs.empty ())
+			{
+				std::cout << "No timestamps found in the database" << std::endl;
+			}
+			else
+			{
+				try
+				{
+					boost::filesystem::ofstream stream{ timestamps_path };
+					std::cout << "Writing to file..." << std::endl;
+					for (auto & pair : pairs)
+					{
+						stream << pair.first.to_string () << "," << pair.second << std::endl;
+					}
+					std::cout << "Completed exporting timestamps, the file can be found in " << timestamps_path << std::endl;
+				}
+				catch (const boost::filesystem::filesystem_error & ex)
+				{
+					std::cerr << "Timestamps export failed during a file operation: " << ex.what () << std::endl;
+				}
+				catch (...)
+				{
+					std::cerr << "Timestamps export failed (unknown reason)" << std::endl;
+				}
+			}
+		}
+		else
+		{
+			std::cout << "Empty database" << std::endl;
+		}
+	}
+	else if (vm.count ("timestamps_update_frontiers") == 1)
+	{
+		auto inactive_node = nano::default_inactive_node (data_path, vm);
+
+		boost::filesystem::path data_path = vm.count ("data_path") ? boost::filesystem::path (vm["data_path"].as<std::string> ()) : nano::working_path ();
+
+		std::cout << "Updating account information..." << std::endl;
+
+		auto transaction (inactive_node->node->store.tx_begin_write ());
+
+		for (auto i (inactive_node->node->store.account.begin (transaction)), n (inactive_node->node->store.account.end ()); i != n; ++i)
+		{
+			auto block (inactive_node->node->store.block.get (transaction, i->second.head));
+			i->second.modified = block->sideband ().timestamp;
+			inactive_node->node->store.account.put (transaction, i->first, i->second);
 		}
 	}
 	else

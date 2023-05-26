@@ -1,8 +1,6 @@
 #include <nano/lib/epoch.hpp>
 #include <nano/lib/utility.hpp>
 
-#include <algorithm>
-
 nano::link const & nano::epochs::link (nano::epoch epoch_a) const
 {
 	return epochs_m.at (epoch_a).link;

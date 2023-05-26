@@ -5,6 +5,7 @@
 #include <nano/lib/locks.hpp>
 
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 

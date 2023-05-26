@@ -15,12 +15,7 @@ constexpr std::size_t nano::frontier_req_client::size_frontier;
 
 void nano::frontier_req_client::run (nano::account const & start_account_a, uint32_t const frontiers_age_a, uint32_t const count_a)
 {
-	auto node = connection->node.lock ();
-	if (!node)
-	{
-		return;
-	}
-	nano::frontier_req request{ node->network_params.network };
+	nano::frontier_req request{ connection->node->network_params.network };
 	request.start = (start_account_a.is_zero () || start_account_a.number () == std::numeric_limits<nano::uint256_t>::max ()) ? start_account_a : start_account_a.number () + 1;
 	request.age = frontiers_age_a;
 	request.count = count_a;
@@ -31,24 +26,19 @@ void nano::frontier_req_client::run (nano::account const & start_account_a, uint
 	auto this_l (shared_from_this ());
 	connection->channel->send (
 	request, [this_l] (boost::system::error_code const & ec, std::size_t size_a) {
-		auto node = this_l->connection->node.lock ();
-		if (!node)
-		{
-			return;
-		}
 		if (!ec)
 		{
 			this_l->receive_frontier ();
 		}
 		else
 		{
-			if (node->config.logging.network_logging ())
+			if (this_l->connection->node->config.logging.network_logging ())
 			{
-				node->logger.try_log (boost::str (boost::format ("Error while sending bootstrap request %1%") % ec.message ()));
+				this_l->connection->node->logger.try_log (boost::str (boost::format ("Error while sending bootstrap request %1%, to %2%") % ec.message () % this_l->connection->channel->to_string ()));
 			}
 		}
 	},
-	nano::transport::buffer_drop_policy::no_limiter_drop);
+	nano::buffer_drop_policy::no_limiter_drop);
 }
 
 nano::frontier_req_client::frontier_req_client (std::shared_ptr<nano::bootstrap_client> const & connection_a, std::shared_ptr<nano::bootstrap_attempt_legacy> const & attempt_a) :
@@ -63,11 +53,6 @@ void nano::frontier_req_client::receive_frontier ()
 {
 	auto this_l (shared_from_this ());
 	connection->socket->async_read (connection->receive_buffer, nano::frontier_req_client::size_frontier, [this_l] (boost::system::error_code const & ec, std::size_t size_a) {
-		auto node = this_l->connection->node.lock ();
-		if (!node)
-		{
-			return;
-		}
 		// An issue with asio is that sometimes, instead of reporting a bad file descriptor during disconnect,
 		// we simply get a size of 0.
 		if (size_a == nano::frontier_req_client::size_frontier)
@@ -76,9 +61,9 @@ void nano::frontier_req_client::receive_frontier ()
 		}
 		else
 		{
-			if (node->config.logging.network_message_logging ())
+			if (this_l->connection->node->config.logging.network_message_logging ())
 			{
-				node->logger.try_log (boost::str (boost::format ("Invalid size: expected %1%, got %2%") % nano::frontier_req_client::size_frontier % size_a));
+				this_l->connection->node->logger.try_log (boost::str (boost::format ("Invalid size: expected %1%, got %2%") % nano::frontier_req_client::size_frontier % size_a));
 			}
 		}
 	});
@@ -107,11 +92,6 @@ void nano::frontier_req_client::unsynced (nano::block_hash const & head, nano::b
 
 void nano::frontier_req_client::received_frontier (boost::system::error_code const & ec, std::size_t size_a)
 {
-	auto node = connection->node.lock ();
-	if (!node)
-	{
-		return;
-	}
 	if (!ec)
 	{
 		debug_assert (size_a == nano::frontier_req_client::size_frontier);
@@ -137,13 +117,13 @@ void nano::frontier_req_client::received_frontier (boost::system::error_code con
 		double age_factor = (frontiers_age == std::numeric_limits<decltype (frontiers_age)>::max ()) ? 1.0 : 1.5; // Allow slower frontiers receive for requests with age
 		if (elapsed_sec > nano::bootstrap_limits::bootstrap_connection_warmup_time_sec && blocks_per_sec * age_factor < nano::bootstrap_limits::bootstrap_minimum_frontier_blocks_per_sec)
 		{
-			node->logger.try_log (boost::str (boost::format ("Aborting frontier req because it was too slow: %1% frontiers per second, last %2%") % blocks_per_sec % account.to_account ()));
+			connection->node->logger.try_log (boost::str (boost::format ("Aborting frontier req because it was too slow: %1% frontiers per second, last %2%") % blocks_per_sec % account.to_account ()));
 			promise.set_value (true);
 			return;
 		}
 		if (attempt->should_log ())
 		{
-			node->logger.always_log (boost::str (boost::format ("Received %1% frontiers from %2%") % std::to_string (count) % connection->channel->to_string ()));
+			connection->node->logger.always_log (boost::str (boost::format ("Received %1% frontiers from %2%") % std::to_string (count) % connection->channel->to_string ()));
 		}
 		if (!account.is_zero () && count <= count_limit)
 		{
@@ -164,14 +144,14 @@ void nano::frontier_req_client::received_frontier (boost::system::error_code con
 					}
 					else
 					{
-						if (node->ledger.block_or_pruned_exists (latest))
+						if (connection->node->ledger.block_or_pruned_exists (latest))
 						{
 							// We know about a block they don't.
 							unsynced (frontier, latest);
 						}
 						else
 						{
-							attempt->add_frontier (nano::pull_info (account, latest, frontier, attempt->incremental_id, 0, node->network_params.bootstrap.frontier_retry_limit));
+							attempt->add_frontier (nano::pull_info (account, latest, frontier, attempt->incremental_id, 0, connection->node->network_params.bootstrap.frontier_retry_limit));
 							// Either we're behind or there's a fork we differ on
 							// Either way, bulk pushing will probably not be effective
 							bulk_push_cost += 5;
@@ -182,12 +162,12 @@ void nano::frontier_req_client::received_frontier (boost::system::error_code con
 				else
 				{
 					debug_assert (account < current);
-					attempt->add_frontier (nano::pull_info (account, latest, nano::block_hash (0), attempt->incremental_id, 0, node->network_params.bootstrap.frontier_retry_limit));
+					attempt->add_frontier (nano::pull_info (account, latest, nano::block_hash (0), attempt->incremental_id, 0, connection->node->network_params.bootstrap.frontier_retry_limit));
 				}
 			}
 			else
 			{
-				attempt->add_frontier (nano::pull_info (account, latest, nano::block_hash (0), attempt->incremental_id, 0, node->network_params.bootstrap.frontier_retry_limit));
+				attempt->add_frontier (nano::pull_info (account, latest, nano::block_hash (0), attempt->incremental_id, 0, connection->node->network_params.bootstrap.frontier_retry_limit));
 			}
 			receive_frontier ();
 		}
@@ -203,9 +183,9 @@ void nano::frontier_req_client::received_frontier (boost::system::error_code con
 				}
 				// Prevent new frontier_req requests
 				attempt->set_start_account (std::numeric_limits<nano::uint256_t>::max ());
-				if (node->config.logging.bulk_pull_logging ())
+				if (connection->node->config.logging.bulk_pull_logging ())
 				{
-					node->logger.try_log ("Bulk push cost: ", bulk_push_cost);
+					connection->node->logger.try_log ("Bulk push cost: ", bulk_push_cost);
 				}
 			}
 			else
@@ -213,7 +193,7 @@ void nano::frontier_req_client::received_frontier (boost::system::error_code con
 				// Set last processed account as new start target
 				attempt->set_start_account (last_account);
 			}
-			node->bootstrap_initiator.connections->pool_connection (connection);
+			connection->connections.pool_connection (connection);
 			try
 			{
 				promise.set_value (false);
@@ -225,26 +205,21 @@ void nano::frontier_req_client::received_frontier (boost::system::error_code con
 	}
 	else
 	{
-		if (node->config.logging.network_logging ())
+		if (connection->node->config.logging.network_logging ())
 		{
-			node->logger.try_log (boost::str (boost::format ("Error while receiving frontier %1%") % ec.message ()));
+			connection->node->logger.try_log (boost::str (boost::format ("Error while receiving frontier %1%, to %2%") % ec.message () % connection->channel->to_string ()));
 		}
 	}
 }
 
 void nano::frontier_req_client::next ()
 {
-	auto node = connection->node.lock ();
-	if (!node)
-	{
-		return;
-	}
 	// Filling accounts deque to prevent often read transactions
 	if (accounts.empty ())
 	{
 		std::size_t max_size (128);
-		auto transaction (node->store.tx_begin_read ());
-		for (auto i (node->store.account.begin (transaction, current.number () + 1)), n (node->store.account.end ()); i != n && accounts.size () != max_size; ++i)
+		auto transaction (connection->node->store.tx_begin_read ());
+		for (auto i (connection->node->store.account.begin (transaction, current.number () + 1)), n (connection->node->store.account.end ()); i != n && accounts.size () != max_size; ++i)
 		{
 			nano::account_info const & info (i->second);
 			nano::account const & account (i->first);
@@ -276,11 +251,6 @@ nano::frontier_req_server::frontier_req_server (std::shared_ptr<nano::transport:
 
 void nano::frontier_req_server::send_next ()
 {
-	auto node = connection->node.lock ();
-	if (!node)
-	{
-		return;
-	}
 	if (!current.is_zero () && count < request->count)
 	{
 		std::vector<uint8_t> send_buffer;
@@ -292,9 +262,9 @@ void nano::frontier_req_server::send_next ()
 			debug_assert (!frontier.is_zero ());
 		}
 		auto this_l (shared_from_this ());
-		if (node->config.logging.bulk_pull_logging ())
+		if (connection->node->config.logging.bulk_pull_logging ())
 		{
-			node->logger.try_log (boost::str (boost::format ("Sending frontier for %1% %2%") % current.to_account () % frontier.to_string ()));
+			connection->node->logger.try_log (boost::str (boost::format ("Sending frontier for %1% %2%") % current.to_account () % frontier.to_string ()));
 		}
 		next ();
 		connection->socket->async_write (nano::shared_const_buffer (std::move (send_buffer)), [this_l] (boost::system::error_code const & ec, std::size_t size_a) {
@@ -309,11 +279,6 @@ void nano::frontier_req_server::send_next ()
 
 void nano::frontier_req_server::send_finished ()
 {
-	auto node = connection->node.lock ();
-	if (!node)
-	{
-		return;
-	}
 	std::vector<uint8_t> send_buffer;
 	{
 		nano::vectorstream stream (send_buffer);
@@ -322,9 +287,9 @@ void nano::frontier_req_server::send_finished ()
 		write (stream, zero.bytes);
 	}
 	auto this_l (shared_from_this ());
-	if (node->config.logging.network_logging ())
+	if (connection->node->config.logging.network_logging ())
 	{
-		node->logger.try_log ("Frontier sending finished");
+		connection->node->logger.try_log ("Frontier sending finished");
 	}
 	connection->socket->async_write (nano::shared_const_buffer (std::move (send_buffer)), [this_l] (boost::system::error_code const & ec, std::size_t size_a) {
 		this_l->no_block_sent (ec, size_a);
@@ -333,65 +298,50 @@ void nano::frontier_req_server::send_finished ()
 
 void nano::frontier_req_server::no_block_sent (boost::system::error_code const & ec, std::size_t size_a)
 {
-	auto node = connection->node.lock ();
-	if (!node)
-	{
-		return;
-	}
 	if (!ec)
 	{
 		connection->start ();
 	}
 	else
 	{
-		if (node->config.logging.network_logging ())
+		if (connection->node->config.logging.network_logging ())
 		{
-			node->logger.try_log (boost::str (boost::format ("Error sending frontier finish: %1%") % ec.message ()));
+			connection->node->logger.try_log (boost::str (boost::format ("Error sending frontier finish: %1%, to %2%") % ec.message () % connection->socket->remote_endpoint ()));
 		}
 	}
 }
 
 void nano::frontier_req_server::sent_action (boost::system::error_code const & ec, std::size_t size_a)
 {
-	auto node = connection->node.lock ();
-	if (!node)
-	{
-		return;
-	}
 	if (!ec)
 	{
 		count++;
 
-		node->bootstrap_workers.push_task ([this_l = shared_from_this ()] () {
+		connection->node->bootstrap_workers.push_task ([this_l = shared_from_this ()] () {
 			this_l->send_next ();
 		});
 	}
 	else
 	{
-		if (node->config.logging.network_logging ())
+		if (connection->node->config.logging.network_logging ())
 		{
-			node->logger.try_log (boost::str (boost::format ("Error sending frontier pair: %1%") % ec.message ()));
+			connection->node->logger.try_log (boost::str (boost::format ("Error sending frontier pair: %1%, to %2%") % ec.message () % connection->socket->remote_endpoint ()));
 		}
 	}
 }
 
 void nano::frontier_req_server::next ()
 {
-	auto node = connection->node.lock ();
-	if (!node)
-	{
-		return;
-	}
 	// Filling accounts deque to prevent often read transactions
 	if (accounts.empty ())
 	{
 		auto now (nano::seconds_since_epoch ());
 		bool disable_age_filter (request->age == std::numeric_limits<decltype (request->age)>::max ());
 		std::size_t max_size (128);
-		auto transaction (node->store.tx_begin_read ());
+		auto transaction (connection->node->store.tx_begin_read ());
 		if (!send_confirmed ())
 		{
-			for (auto i (node->store.account.begin (transaction, current.number () + 1)), n (node->store.account.end ()); i != n && accounts.size () != max_size; ++i)
+			for (auto i (connection->node->store.account.begin (transaction, current.number () + 1)), n (connection->node->store.account.end ()); i != n && accounts.size () != max_size; ++i)
 			{
 				nano::account_info const & info (i->second);
 				if (disable_age_filter || (now - info.modified) <= request->age)
@@ -403,7 +353,7 @@ void nano::frontier_req_server::next ()
 		}
 		else
 		{
-			for (auto i (node->store.confirmation_height.begin (transaction, current.number () + 1)), n (node->store.confirmation_height.end ()); i != n && accounts.size () != max_size; ++i)
+			for (auto i (connection->node->store.confirmation_height.begin (transaction, current.number () + 1)), n (connection->node->store.confirmation_height.end ()); i != n && accounts.size () != max_size; ++i)
 			{
 				nano::confirmation_height_info const & info (i->second);
 				nano::block_hash const & confirmed_frontier (info.frontier);

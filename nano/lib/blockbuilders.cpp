@@ -1,8 +1,8 @@
 #include <nano/lib/blockbuilders.hpp>
 
-#include <unordered_map>
+#include <crypto/cryptopp/osrng.h>
 
-#include <cryptopp/osrng.h>
+#include <unordered_map>
 
 namespace
 {

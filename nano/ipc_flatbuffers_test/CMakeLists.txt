@@ -8,4 +8,5 @@ target_link_libraries(
   Boost::log
   Boost::program_options
   Boost::system
-  Boost::thread)
+  Boost::thread
+  Boost::boost)
