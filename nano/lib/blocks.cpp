@@ -6,12 +6,12 @@
 #include <nano/lib/threading.hpp>
 #include <nano/secure/common.hpp>
 
-#include <crypto/cryptopp/words.h>
-
 #include <boost/endian/conversion.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
 #include <bitset>
+
+#include <cryptopp/words.h>
 
 /** Compare blocks, first by type, then content. This is an optimization over dynamic_cast, which is very slow on some platforms. */
 namespace
@@ -318,7 +318,6 @@ void nano::send_block::serialize_json (boost::property_tree::ptree & tree) const
 	std::string balance;
 	hashables.balance.encode_hex (balance);
 	tree.put ("balance", balance);
-	tree.put ("balance_decimal", convert_raw_to_dec (hashables.balance.to_string_dec ()));
 	std::string signature_l;
 	signature.encode_hex (signature_l);
 	tree.put ("work", nano::to_string_hex (work));
@@ -1199,7 +1198,6 @@ void nano::state_block::serialize_json (boost::property_tree::ptree & tree) cons
 	tree.put ("previous", hashables.previous.to_string ());
 	tree.put ("representative", representative ().to_account ());
 	tree.put ("balance", hashables.balance.to_string_dec ());
-	tree.put ("balance_decimal", convert_raw_to_dec (hashables.balance.to_string_dec ()));
 	tree.put ("link", hashables.link.to_string ());
 	tree.put ("link_as_account", hashables.link.to_account ());
 	std::string signature_l;
@@ -1763,7 +1761,7 @@ std::string nano::state_subtype (nano::block_details const details_a)
 	}
 }
 
-nano::block_sideband::block_sideband (nano::account const & account_a, nano::block_hash const & successor_a, nano::amount const & balance_a, uint64_t const height_a, uint64_t const timestamp_a, nano::block_details const & details_a, nano::epoch const source_epoch_a) :
+nano::block_sideband::block_sideband (nano::account const & account_a, nano::block_hash const & successor_a, nano::amount const & balance_a, uint64_t const height_a, nano::seconds_t const timestamp_a, nano::block_details const & details_a, nano::epoch const source_epoch_a) :
 	successor (successor_a),
 	account (account_a),
 	balance (balance_a),
@@ -1774,7 +1772,7 @@ nano::block_sideband::block_sideband (nano::account const & account_a, nano::blo
 {
 }
 
-nano::block_sideband::block_sideband (nano::account const & account_a, nano::block_hash const & successor_a, nano::amount const & balance_a, uint64_t const height_a, uint64_t const timestamp_a, nano::epoch const epoch_a, bool const is_send, bool const is_receive, bool const is_epoch, nano::epoch const source_epoch_a) :
+nano::block_sideband::block_sideband (nano::account const & account_a, nano::block_hash const & successor_a, nano::amount const & balance_a, uint64_t const height_a, nano::seconds_t const timestamp_a, nano::epoch const epoch_a, bool const is_send, bool const is_receive, bool const is_epoch, nano::epoch const source_epoch_a) :
 	successor (successor_a),
 	account (account_a),
 	balance (balance_a),
@@ -1880,7 +1878,7 @@ std::shared_ptr<nano::block> nano::block_uniquer::unique (std::shared_ptr<nano::
 	if (result != nullptr)
 	{
 		nano::uint256_union key (block_a->full_hash ());
-		nano::lock_guard<nano::mutex> lock (mutex);
+		nano::lock_guard<nano::mutex> lock{ mutex };
 		auto & existing (blocks[key]);
 		if (auto block_l = existing.lock ())
 		{
@@ -1917,7 +1915,7 @@ std::shared_ptr<nano::block> nano::block_uniquer::unique (std::shared_ptr<nano::
 
 size_t nano::block_uniquer::size ()
 {
-	nano::lock_guard<nano::mutex> lock (mutex);
+	nano::lock_guard<nano::mutex> lock{ mutex };
 	return blocks.size ();
 }
 
