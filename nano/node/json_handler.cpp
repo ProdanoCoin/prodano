@@ -4198,27 +4198,28 @@ void nano::json_handler::telemetry ()
 			if (maybe_telemetry)
 			{
 				auto telemetry = *maybe_telemetry;
-						nano::jsonconfig config_l;
-						auto const should_ignore_identification_metrics = false;
+				nano::jsonconfig config_l;
+				auto const should_ignore_identification_metrics = false;
 				auto err = telemetry.serialize_json (config_l, should_ignore_identification_metrics);
-						auto const & ptree = config_l.get_tree ();
+				auto const & ptree = config_l.get_tree ();
 
-						if (!err)
-						{
+				if (!err)
+				{
 					response_l.insert (response_l.begin (), ptree.begin (), ptree.end ());
-						}
-						else
-						{
+				}
+				else
+				{
 					ec = nano::error_rpc::generic;
-						}
-					}
-					else
-					{
-				ec = nano::error_rpc::peer_not_found;
-					}
-
-				response_errors ();
+				}
+				}
+				else
+				{
+					ec = nano::error_rpc::peer_not_found;
+				}
 			}
+
+			response_errors ();
+		}
 		else
 		{
 			response_errors ();
