@@ -142,8 +142,6 @@ public:
 	operator nano::hash_or_account const & () const;
 	bool operator== (std::nullptr_t) const;
 	bool operator!= (std::nullptr_t) const;
-	using uint256_union::operator==;
-	using uint256_union::operator!=;
 };
 
 class wallet_id : public uint256_union
