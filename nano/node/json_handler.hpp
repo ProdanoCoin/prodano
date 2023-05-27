@@ -67,6 +67,7 @@ public:
 	void confirmation_height_currently_processing ();
 	void debug_bootstrap_priority_info ();
 	void database_txn_tracker ();
+	void delegators_decimal ();
 	void delegators ();
 	void delegators_count ();
 	void deterministic_key ();
