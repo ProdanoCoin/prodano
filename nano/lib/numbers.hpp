@@ -94,6 +94,18 @@ public:
 		std::array<uint128_union, 2> owords;
 	};
 };
+inline bool operator== (nano::uint256_union const & lhs, nano::uint256_union const & rhs)
+{
+	return lhs.bytes == rhs.bytes;
+}
+inline bool operator!= (nano::uint256_union const & lhs, nano::uint256_union const & rhs)
+{
+	return !(lhs == rhs);
+}
+inline bool operator< (nano::uint256_union const & lhs, nano::uint256_union const & rhs)
+{
+	return std::memcmp (lhs.bytes.data (), rhs.bytes.data (), 32) < 0;
+}
 static_assert (std::is_nothrow_move_constructible<uint256_union>::value, "uint256_union should be noexcept MoveConstructible");
 
 class link;
