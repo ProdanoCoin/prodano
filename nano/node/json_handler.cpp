@@ -1040,7 +1040,7 @@ void nano::json_handler::accounts_frontiers ()
 	}
 	if (!frontiers.empty ())
 	{
-	response_l.add_child ("frontiers", frontiers);
+		response_l.add_child ("frontiers", frontiers);
 	}
 	if (!errors.empty ())
 	{
