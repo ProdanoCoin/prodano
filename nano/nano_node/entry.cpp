@@ -224,13 +224,13 @@ int main (int argc, char * const * argv)
 
 				nano::uint128_union const mismatch_stddev = nano::narrow_cast<nano::uint128_t> (boost::multiprecision::sqrt (mismatch_variance.number ()));
 
-				auto const outlier_threshold = std::max (nano::Gxrb_ratio, mismatch_mean.number () + 1 * mismatch_stddev.number ());
+				auto const outlier_threshold = std::max (nano::MBAN_ratio, mismatch_mean.number () + 1 * mismatch_stddev.number ());
 				decltype (mismatched) outliers;
 				std::copy_if (mismatched.begin (), mismatched.end (), std::back_inserter (outliers), [outlier_threshold] (mismatched_t const & sample) {
 					return sample.diff > outlier_threshold;
 				});
 
-				auto const newcomer_threshold = std::max (nano::Gxrb_ratio, mismatch_mean.number ());
+				auto const newcomer_threshold = std::max (nano::MBAN_ratio, mismatch_mean.number ());
 				std::vector<std::pair<nano::account, nano::uint128_t>> newcomers;
 				std::copy_if (ledger.begin (), ledger.end (), std::back_inserter (newcomers), [&hardcoded] (auto const & rep) {
 					return !hardcoded.count (rep.first) && rep.second;
@@ -275,7 +275,7 @@ int main (int argc, char * const * argv)
 				}
 
 				// Log more data
-				auto const log_threshold = nano::Gxrb_ratio;
+				auto const log_threshold = nano::MBAN_ratio;
 				for (auto const & sample : mismatched)
 				{
 					if (sample.diff > log_threshold)
