@@ -65,9 +65,9 @@ public:
 	void confirmation_info ();
 	void confirmation_quorum ();
 	void confirmation_height_currently_processing ();
+	void debug_bootstrap_priority_info ();
 	void database_txn_tracker ();
 	void delegators ();
-	void delegators_decimal ();
 	void delegators_count ();
 	void deterministic_key ();
 	void epoch_upgrade ();
@@ -93,12 +93,10 @@ public:
 	void populate_backlog ();
 	void process ();
 	void pruned_exists ();
-	void raw_to_dec ();
 	void receive ();
 	void receive_minimum ();
 	void receive_minimum_set ();
 	void representatives ();
-	void representatives_decimal_millions ();
 	void representatives_online ();
 	void republish ();
 	void search_pending ();
