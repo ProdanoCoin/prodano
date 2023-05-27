@@ -102,11 +102,11 @@ void nano::json_handler::process_request (bool unsafe_a)
 			}
 			else if (action == "knano_from_raw" || action == "banoshi_from_raw")
 			{
-				mnano_from_raw (nano::kxrb_ratio);
+				mnano_from_raw (nano::banoshi_ratio);
 			}
 			else if (action == "knano_to_raw" || action == "banoshi_to_raw")
 			{
-				mnano_to_raw (nano::kxrb_ratio);
+				mnano_to_raw (nano::banoshi_ratio);
 			}
 			else if (action == "rai_from_raw")
 			{
