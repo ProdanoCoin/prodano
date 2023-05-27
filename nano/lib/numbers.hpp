@@ -75,9 +75,6 @@ public:
 	void encrypt (nano::raw_key const &, nano::raw_key const &, uint128_union const &);
 	uint256_union & operator^= (nano::uint256_union const &);
 	uint256_union operator^ (nano::uint256_union const &) const;
-	bool operator== (nano::uint256_union const &) const;
-	bool operator!= (nano::uint256_union const &) const;
-	bool operator< (nano::uint256_union const &) const;
 	void encode_hex (std::string &) const;
 	bool decode_hex (std::string const &);
 	void encode_dec (std::string &) const;
