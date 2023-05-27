@@ -932,15 +932,15 @@ void nano::json_handler::accounts_balances ()
 		{
 			bool const include_only_confirmed = request.get<bool> ("include_only_confirmed", true);
 			auto balance = node.balance_pending (account, include_only_confirmed);
-				entry.put ("balance", balance.first.convert_to<std::string> ());
-				entry.put ("balance_decimal", convert_raw_to_dec (balance.first.convert_to<std::string> ()));
-				entry.put ("pending", balance.second.convert_to<std::string> ());
-				entry.put ("balance_decimal", convert_raw_to_dec (balance.second.convert_to<std::string> ()));
-				entry.put ("receivable", balance.second.convert_to<std::string> ());
-				entry.put ("receivable_decimal", convert_raw_to_dec (balance.second.convert_to<std::string> ()));
-				balances.put_child (account_from_request.second.data (), entry);
-				continue;
-			}
+			entry.put ("balance", balance.first.convert_to<std::string> ());
+			entry.put ("balance_decimal", convert_raw_to_dec (balance.first.convert_to<std::string> ()));
+			entry.put ("pending", balance.second.convert_to<std::string> ());
+			entry.put ("balance_decimal", convert_raw_to_dec (balance.second.convert_to<std::string> ()));
+			entry.put ("receivable", balance.second.convert_to<std::string> ());
+			entry.put ("receivable_decimal", convert_raw_to_dec (balance.second.convert_to<std::string> ()));
+			balances.put_child (account_from_request.second.data (), entry);
+			continue;
+		}
 		debug_assert (ec);
 		errors.put (account_from_request.second.data (), ec.message ());
 		ec = {};
