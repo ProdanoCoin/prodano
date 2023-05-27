@@ -108,13 +108,13 @@ void nano::json_handler::process_request (bool unsafe_a)
 			{
 				mnano_to_raw (nano::banoshi_ratio);
 			}
-			else if (action == "rai_from_raw")
+			else if (action == "raw_from_raw")
 			{
-				mnano_from_raw (nano::xrb_ratio);
+				mnano_from_raw (nano::RAW_ratio);
 			}
-			else if (action == "rai_to_raw")
+			else if (action == "raw_to_raw")
 			{
-				mnano_to_raw (nano::xrb_ratio);
+				mnano_to_raw (nano::RAW_ratio);
 			}
 			else if (action == "mnano_from_raw" || action == "mrai_from_raw")
 			{
@@ -2892,7 +2892,7 @@ void nano::json_handler::nano_to_raw ()
 	auto amount (amount_impl ());
 	if (!ec)
 	{
-		auto result (amount.number () * nano::Mxrb_ratio);
+		auto result (amount.number () * nano::MRAW_ratio);
 		if (result > amount.number ())
 		{
 			response_l.put ("amount", result.convert_to<std::string> ());
@@ -2910,7 +2910,7 @@ void nano::json_handler::raw_to_nano ()
 	auto amount (amount_impl ());
 	if (!ec)
 	{
-		auto result (amount.number () / nano::Mxrb_ratio);
+		auto result (amount.number () / nano::MRAW_ratio);
 		response_l.put ("amount", result.convert_to<std::string> ());
 	}
 	response_errors ();
