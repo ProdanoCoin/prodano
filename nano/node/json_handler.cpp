@@ -4211,13 +4211,11 @@ void nano::json_handler::telemetry ()
 				{
 					ec = nano::error_rpc::generic;
 				}
-				}
-				else
-				{
-					ec = nano::error_rpc::peer_not_found;
-				}
 			}
-
+			else
+			{
+				ec = nano::error_rpc::peer_not_found;
+			}
 			response_errors ();
 		}
 		else
