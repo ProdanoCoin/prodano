@@ -4898,8 +4898,6 @@ void nano::json_handler::wallet_ledger ()
 					entry.put ("balance_decimal", convert_raw_to_dec (balance));
 					entry.put ("modified_timestamp", std::to_string (info->modified));
 					entry.put ("block_count", std::to_string (info->block_count));
-					entry.put ("modified_timestamp", std::to_string (info.modified));
-					entry.put ("block_count", std::to_string (info.block_count));
 					if (representative)
 					{
 						entry.put ("representative", info->representative.to_account ());
