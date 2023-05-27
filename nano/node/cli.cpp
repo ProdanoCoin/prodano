@@ -30,10 +30,6 @@ std::string nano::error_cli_messages::message (int ev) const
 			return "Database write error";
 		case nano::error_cli::reading_config:
 			return "Config file read error";
-		case nano::error_cli::disable_all_network:
-			return "Flags --disable_tcp_realtime and --disable_udp cannot be used together";
-		case nano::error_cli::ambiguous_udp_options:
-			return "Flags --disable_udp and --enable_udp cannot be used together";
 		case nano::error_cli::ambiguous_pruning_voting_options:
 			return "Flag --enable_pruning and enable_voting in node config cannot be used together";
 	}
