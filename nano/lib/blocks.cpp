@@ -318,6 +318,7 @@ void nano::send_block::serialize_json (boost::property_tree::ptree & tree) const
 	std::string balance;
 	hashables.balance.encode_hex (balance);
 	tree.put ("balance", balance);
+	tree.put ("balance_decimal", convert_raw_to_dec (hashables.balance.to_string_dec ()));
 	std::string signature_l;
 	signature.encode_hex (signature_l);
 	tree.put ("work", nano::to_string_hex (work));
@@ -1198,6 +1199,7 @@ void nano::state_block::serialize_json (boost::property_tree::ptree & tree) cons
 	tree.put ("previous", hashables.previous.to_string ());
 	tree.put ("representative", representative ().to_account ());
 	tree.put ("balance", hashables.balance.to_string_dec ());
+	tree.put ("balance_decimal", convert_raw_to_dec (hashables.balance.to_string_dec ()));
 	tree.put ("link", hashables.link.to_string ());
 	tree.put ("link_as_account", hashables.link.to_account ());
 	std::string signature_l;
