@@ -116,11 +116,11 @@ void nano::json_handler::process_request (bool unsafe_a)
 			{
 				mnano_to_raw (nano::RAW_ratio);
 			}
-			else if (action == "mnano_from_raw" || action == "mrai_from_raw")
+			else if (action == "mnano_from_raw" || action == "ban_from_raw")
 			{
 				mnano_from_raw ();
 			}
-			else if (action == "mnano_to_raw" || action == "mrai_to_raw")
+			else if (action == "mnano_to_raw" || action == "ban_to_raw")
 			{
 				mnano_to_raw ();
 			}
@@ -138,7 +138,7 @@ void nano::json_handler::process_request (bool unsafe_a)
 			}
 			else if (action == "wallet_locked")
 			{
-				password_valid (true);
+				password_valid ();
 			}
 			else
 			{
