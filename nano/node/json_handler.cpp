@@ -979,7 +979,7 @@ void nano::json_handler::accounts_representatives ()
 	}
 	if (!representatives.empty ())
 	{
-	response_l.add_child ("representatives", representatives);
+		response_l.add_child ("representatives", representatives);
 	}
 	if (!errors.empty ())
 	{
