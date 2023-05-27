@@ -138,7 +138,7 @@ void nano::json_handler::process_request (bool unsafe_a)
 			}
 			else if (action == "wallet_locked")
 			{
-				password_valid ();
+				password_valid (true);
 			}
 			else
 			{
