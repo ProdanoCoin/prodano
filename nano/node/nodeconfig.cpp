@@ -129,6 +129,8 @@ nano::error nano::node_config::serialize_toml (nano::tomlconfig & toml) const
 	toml.put ("frontiers_confirmation", serialize_frontiers_confirmation (frontiers_confirmation), "Mode controlling frontier confirmation rate.\ntype:string,{auto,always,disabled}");
 	toml.put ("max_queued_requests", max_queued_requests, "Limit for number of queued confirmation requests for one channel, after which new requests are dropped until the queue drops below this value.\ntype:uint32");
 	toml.put ("rep_crawler_weight_minimum", rep_crawler_weight_minimum.to_string_dec (), "Rep crawler minimum weight, if this is less than minimum principal weight then this is taken as the minimum weight a rep must have to be tracked. If you want to track all reps set this to 0. If you do not want this to influence anything then set it to max value. This is only useful for debugging or for people who really know what they are doing.\ntype:string,amount,raw");
+	toml.put ("backlog_scan_batch_size", backlog_scan_batch_size, "Number of accounts per second to process when doing backlog population scan. Increasing this value will help unconfirmed frontiers get into election prioritization queue faster, however it will also increase resource usage. \ntype:uint");
+	toml.put ("backlog_scan_frequency", backlog_scan_frequency, "Backlog scan divides the scan into smaller batches, number of which is controlled by this value. Higher frequency helps to utilize resources more uniformly, however it also introduces more overhead. The resulting number of accounts per single batch is `backlog_scan_batch_size / backlog_scan_frequency` \ntype:uint");
 
 	auto work_peers_l (toml.create_array ("work_peers", "A list of \"address:port\" entries to identify work peers."));
 	for (auto i (work_peers.begin ()), n (work_peers.end ()); i != n; ++i)
@@ -136,7 +138,7 @@ nano::error nano::node_config::serialize_toml (nano::tomlconfig & toml) const
 		work_peers_l->push_back (boost::str (boost::format ("%1%:%2%") % i->first % i->second));
 	}
 
-	auto preconfigured_peers_l (toml.create_array ("preconfigured_peers", "A list of \"address\" (hostname or ipv6 notation ip address) entries to identify preconfigured peers."));
+	auto preconfigured_peers_l (toml.create_array ("preconfigured_peers", "A list of \"address\" (hostname or ipv6 notation ip address) entries to identify preconfigured peers.\nThe contents of the NANO_DEFAULT_PEER environment variable are added to preconfigured_peers."));
 	for (auto i (preconfigured_peers.begin ()), n (preconfigured_peers.end ()); i != n; ++i)
 	{
 		preconfigured_peers_l->push_back (*i);
@@ -182,7 +184,7 @@ nano::error nano::node_config::serialize_toml (nano::tomlconfig & toml) const
 	toml.put_child ("diagnostics", diagnostics_l);
 
 	nano::tomlconfig stat_l;
-	stat_config.serialize_toml (stat_l);
+	stats_config.serialize_toml (stat_l);
 	toml.put_child ("statistics", stat_l);
 
 	nano::tomlconfig rocksdb_l;
@@ -192,6 +194,14 @@ nano::error nano::node_config::serialize_toml (nano::tomlconfig & toml) const
 	nano::tomlconfig lmdb_l;
 	lmdb_config.serialize_toml (lmdb_l);
 	toml.put_child ("lmdb", lmdb_l);
+
+	nano::tomlconfig optimistic_l;
+	optimistic_scheduler.serialize (optimistic_l);
+	toml.put_child ("optimistic_scheduler", optimistic_l);
+
+	nano::tomlconfig bootstrap_ascending_l;
+	bootstrap_ascending.serialize (bootstrap_ascending_l);
+	toml.put_child ("bootstrap_ascending", bootstrap_ascending_l);
 
 	return toml.get_error ();
 }
@@ -234,14 +244,26 @@ nano::error nano::node_config::deserialize_toml (nano::tomlconfig & toml)
 
 		if (toml.has_key ("statistics"))
 		{
-			auto stat_config_l (toml.get_required_child ("statistics"));
-			stat_config.deserialize_toml (stat_config_l);
+			auto stats_config_l (toml.get_required_child ("statistics"));
+			stats_config.deserialize_toml (stats_config_l);
 		}
 
 		if (toml.has_key ("rocksdb"))
 		{
 			auto rocksdb_config_l (toml.get_required_child ("rocksdb"));
 			rocksdb_config.deserialize_toml (rocksdb_config_l);
+		}
+
+		if (toml.has_key ("optimistic_scheduler"))
+		{
+			auto config_l = toml.get_required_child ("optimistic_scheduler");
+			optimistic_scheduler.deserialize (config_l);
+		}
+
+		if (toml.has_key ("bootstrap_ascending"))
+		{
+			auto config_l = toml.get_required_child ("bootstrap_ascending");
+			bootstrap_ascending.deserialize (config_l);
 		}
 
 		if (toml.has_key ("work_peers"))
@@ -398,6 +420,9 @@ nano::error nano::node_config::deserialize_toml (nano::tomlconfig & toml)
 			auto frontiers_confirmation_l (toml.get<std::string> ("frontiers_confirmation"));
 			frontiers_confirmation = deserialize_frontiers_confirmation (frontiers_confirmation_l);
 		}
+
+		toml.get<unsigned> ("backlog_scan_batch_size", backlog_scan_batch_size);
+		toml.get<unsigned> ("backlog_scan_frequency", backlog_scan_frequency);
 
 		if (toml.has_key ("experimental"))
 		{
