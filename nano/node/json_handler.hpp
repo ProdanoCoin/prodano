@@ -94,10 +94,12 @@ public:
 	void populate_backlog ();
 	void process ();
 	void pruned_exists ();
+	void raw_to_dec ();
 	void receive ();
 	void receive_minimum ();
 	void receive_minimum_set ();
 	void representatives ();
+	void representatives_decimal_millions ();
 	void representatives_online ();
 	void republish ();
 	void search_pending ();
