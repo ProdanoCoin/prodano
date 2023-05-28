@@ -1501,7 +1501,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 			{
 				try
 				{
-					boost::filesystem::ofstream stream{ timestamps_path };
+					ofstream stream{ timestamps_path };
 					std::cout << "Writing to file..." << std::endl;
 					for (auto & pair : pairs)
 					{
