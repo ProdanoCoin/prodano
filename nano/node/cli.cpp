@@ -5,7 +5,7 @@
 #include <nano/node/common.hpp>
 #include <nano/node/daemonconfig.hpp>
 #include <nano/node/node.hpp>
-
+#include <fstream>
 #include <boost/format.hpp>
 
 namespace
