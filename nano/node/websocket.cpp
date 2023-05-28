@@ -4,6 +4,8 @@
 #include <nano/lib/convert.hpp>
 #include <nano/lib/tlsconfig.hpp>
 #include <nano/lib/work.hpp>
+#include <nano/node/node_observers.hpp>
+#include <nano/node/transport/channel.hpp>
 #include <nano/node/transport/transport.hpp>
 #include <nano/node/wallet.hpp>
 #include <nano/node/websocket.hpp>
@@ -729,9 +731,9 @@ nano::websocket::message nano::websocket::message_builder::block_confirmed (std:
 
 	// Block confirmation properties
 	boost::property_tree::ptree message_node_l;
+	message_node_l.add ("amount_decimal", convert_raw_to_dec (amount_a.to_string_dec ()));
 	message_node_l.add ("account", account_a.to_account ());
 	message_node_l.add ("amount", amount_a.to_string_dec ());
-	message_node_l.add ("amount_decimal", convert_raw_to_dec (amount_a.to_string_dec ()));
 	message_node_l.add ("hash", block_a->hash ().to_string ());
 
 	std::string confirmation_type = "unknown";
@@ -755,9 +757,9 @@ nano::websocket::message nano::websocket::message_builder::block_confirmed (std:
 	{
 		boost::property_tree::ptree election_node_l;
 		election_node_l.add ("duration", election_status_a.election_duration.count ());
+		election_node_l.add ("tally_decimal", convert_raw_to_dec (election_status_a.tally.to_string_dec ()));
 		election_node_l.add ("time", election_status_a.election_end.count ());
 		election_node_l.add ("tally", election_status_a.tally.to_string_dec ());
-		election_node_l.add ("tally_decimal", convert_raw_to_dec (election_status_a.tally.to_string_dec ()));
 		election_node_l.add ("final", election_status_a.final_tally.to_string_dec ());
 		election_node_l.add ("blocks", std::to_string (election_status_a.block_count));
 		election_node_l.add ("voters", std::to_string (election_status_a.voter_count));
@@ -770,9 +772,9 @@ nano::websocket::message nano::websocket::message_builder::block_confirmed (std:
 				boost::property_tree::ptree entry;
 				entry.put ("representative", vote_l.representative.to_account ());
 				entry.put ("timestamp", vote_l.timestamp);
+				entry.put ("weight", convert_raw_to_dec (vote_l.weight.convert_to<std::string> ()));
 				entry.put ("hash", vote_l.hash.to_string ());
 				entry.put ("weight", vote_l.weight.convert_to<std::string> ());
-				entry.put ("weight", convert_raw_to_dec (vote_l.weight.convert_to<std::string> ()));
 				election_votes_l.push_back (std::make_pair ("", entry));
 			}
 			election_node_l.add_child ("votes", election_votes_l);
@@ -964,4 +966,106 @@ std::string nano::websocket::message::to_string () const
 	boost::property_tree::write_json (ostream, contents);
 	ostream.flush ();
 	return ostream.str ();
+}
+
+/*
+ * websocket_server
+ */
+
+nano::websocket_server::websocket_server (nano::websocket::config & config_a, nano::node_observers & observers_a, nano::wallets & wallets_a, nano::ledger & ledger_a, boost::asio::io_context & io_ctx_a, nano::logger_mt & logger_a) :
+	config{ config_a },
+	observers{ observers_a },
+	wallets{ wallets_a },
+	ledger{ ledger_a },
+	io_ctx{ io_ctx_a },
+	logger{ logger_a }
+{
+	if (!config.enabled)
+	{
+		return;
+	}
+
+	auto endpoint = nano::tcp_endpoint{ boost::asio::ip::make_address_v6 (config.address), config.port };
+	server = std::make_shared<nano::websocket::listener> (config.tls_config, logger, wallets, io_ctx, endpoint);
+
+	observers.blocks.add ([this] (nano::election_status const & status_a, std::vector<nano::vote_with_weight_info> const & votes_a, nano::account const & account_a, nano::amount const & amount_a, bool is_state_send_a, bool is_state_epoch_a) {
+		debug_assert (status_a.type != nano::election_status_type::ongoing);
+
+		if (server->any_subscriber (nano::websocket::topic::confirmation))
+		{
+			auto block_a = status_a.winner;
+			std::string subtype;
+			if (is_state_send_a)
+			{
+				subtype = "send";
+			}
+			else if (block_a->type () == nano::block_type::state)
+			{
+				if (block_a->link ().is_zero ())
+				{
+					subtype = "change";
+				}
+				else if (is_state_epoch_a)
+				{
+					debug_assert (amount_a == 0 && ledger.is_epoch_link (block_a->link ()));
+					subtype = "epoch";
+				}
+				else
+				{
+					subtype = "receive";
+				}
+			}
+
+			server->broadcast_confirmation (block_a, account_a, amount_a, subtype, status_a, votes_a);
+		}
+	});
+
+	observers.active_started.add ([this] (nano::block_hash const & hash_a) {
+		if (server->any_subscriber (nano::websocket::topic::started_election))
+		{
+			nano::websocket::message_builder builder;
+			server->broadcast (builder.started_election (hash_a));
+		}
+	});
+
+	observers.active_stopped.add ([this] (nano::block_hash const & hash_a) {
+		if (server->any_subscriber (nano::websocket::topic::stopped_election))
+		{
+			nano::websocket::message_builder builder;
+			server->broadcast (builder.stopped_election (hash_a));
+		}
+	});
+
+	observers.telemetry.add ([this] (nano::telemetry_data const & telemetry_data, std::shared_ptr<nano::transport::channel> const & channel) {
+		if (server->any_subscriber (nano::websocket::topic::telemetry))
+		{
+			nano::websocket::message_builder builder;
+			server->broadcast (builder.telemetry_received (telemetry_data, channel->get_endpoint ()));
+		}
+	});
+
+	observers.vote.add ([this] (std::shared_ptr<nano::vote> vote_a, std::shared_ptr<nano::transport::channel> const & channel_a, nano::vote_code code_a) {
+		if (server->any_subscriber (nano::websocket::topic::vote))
+		{
+			nano::websocket::message_builder builder;
+			auto msg{ builder.vote_received (vote_a, code_a) };
+			server->broadcast (msg);
+		}
+	});
+}
+
+void nano::websocket_server::start ()
+{
+	if (server)
+	{
+		server->run ();
+	}
+}
+
+void nano::websocket_server::stop ()
+{
+	if (server)
+	{
+		server->stop ();
+	}
 }
