@@ -1,3 +1,4 @@
+#include <nano/lib/convert.hpp>
 #include <nano/lib/threading.hpp>
 #include <nano/lib/tomlconfig.hpp>
 #include <nano/lib/utility.hpp>
@@ -7,7 +8,9 @@
 #include <nano/node/rocksdb/rocksdb.hpp>
 #include <nano/node/telemetry.hpp>
 #include <nano/node/websocket.hpp>
+#include <nano/rpc/rpc.hpp>
 #include <nano/secure/buffer.hpp>
+#include <nano/test_common/system.hpp>
 
 #include <boost/filesystem.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -262,6 +265,7 @@ nano::node::node (boost::asio::io_context & io_ctx_a, boost::filesystem::path co
 						block_a->serialize_json (block_text);
 						event.add ("block", block_text);
 						event.add ("amount", amount_a.to_string_dec ());
+						event.add ("amount_decimal", convert_raw_to_dec (amount_a.to_string_dec ()));
 						if (is_state_send_a)
 						{
 							event.add ("is_send", is_state_send_a);
