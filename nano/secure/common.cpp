@@ -5,8 +5,6 @@
 #include <nano/secure/common.hpp>
 #include <nano/secure/store.hpp>
 
-#include <crypto/cryptopp/words.h>
-
 #include <boost/endian/conversion.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/variant/get.hpp>
@@ -15,6 +13,7 @@
 #include <queue>
 
 #include <crypto/ed25519-donna/ed25519.h>
+#include <cryptopp/words.h>
 
 size_t constexpr nano::send_block::size;
 size_t constexpr nano::receive_block::size;
@@ -27,14 +26,14 @@ nano::networks nano::network_constants::active_network = nano::networks::ACTIVE_
 namespace
 {
 char const * dev_private_key_data = "34F0A37AAD20F4A260F0A5B3CB3D7FB50673212263E58A380BC10474BB039CE4";
-char const * dev_public_key_data = "B0311EA55708D6A53C75CDBF88300259C6D018522FE3D4D0A242E431F9E8B6D0"; // ban_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo
+char const * dev_public_key_data = "B0311EA55708D6A53C75CDBF88300259C6D018522FE3D4D0A242E431F9E8B6D0"; // xrb_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo
 char const * beta_public_key_data = "259A43ABDB779E97452E188BA3EB951B41C961D3318CA6B925380F4D99F0577A"; // nano_1betagoxpxwykx4kw86dnhosc8t3s7ix8eeentwkcg1hbpez1outjrcyg4n1
-char const * live_public_key_data = "2514452A978F08D1CF76BB40B6AD064183CF275D3CC5D3E0515DC96E2112AD4E"; // ban_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94xr
+char const * live_public_key_data = "E89208DD038FBB269987689621D52292AE9C35941A7484756ECCED92A65093BA"; // xrb_3t6k35gi95xu6tergt6p69ck76ogmitsa8mnijtpxm9fkcm736xtoncuohr3
 std::string const test_public_key_data = nano::get_env_or_default ("NANO_TEST_GENESIS_PUB", "45C6FF9D1706D61F0821327752671BDA9F9ED2DA40326B01935AB566FB9E08ED"); // nano_1jg8zygjg3pp5w644emqcbmjqpnzmubfni3kfe1s8pooeuxsw49fdq1mco9j
 char const * dev_genesis_data = R"%%%({
 	"type": "open",
 	"source": "B0311EA55708D6A53C75CDBF88300259C6D018522FE3D4D0A242E431F9E8B6D0",
-	"representative": "ban_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
+	"representative": "xrb_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
 	"account": "ban_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
 	"work": "7b42a00ee91d5810",
 	"signature": "ECDA914373A2F0CA1296475BAEE40500A7F0A7AD72A5A80C81D7FAB7F6C802B2CC7DB50F5DD0FB25B2EF11761FA7344A158DD5A700B21BD47DE5BD0F63153A02"
@@ -43,7 +42,7 @@ char const * dev_genesis_data = R"%%%({
 char const * beta_genesis_data = R"%%%({
 	"type": "open",
 	"source": "259A43ABDB779E97452E188BA3EB951B41C961D3318CA6B925380F4D99F0577A",
-	"representative": "bano_1betagoxpxwykx4kw86dnhosc8t3s7ix8eeentwkcg1hbpez1outjrcyg4n1",
+	"representative": "nano_1betagoxpxwykx4kw86dnhosc8t3s7ix8eeentwkcg1hbpez1outjrcyg4n1",
 	"account": "bano_1betagoxpxwykx4kw86dnhosc8t3s7ix8eeentwkcg1hbpez1outjrcyg4n1",
 	"work": "79d4e27dc873c6f2",
 	"signature": "4BD7F96F9ED2721BCEE5EAED400EA50AD00524C629AE55E9AFF11220D2C1B00C3D4B3BB770BF67D4F8658023B677F91110193B6C101C2666931F57046A6DB806"
@@ -51,17 +50,17 @@ char const * beta_genesis_data = R"%%%({
 
 char const * live_genesis_data = R"%%%({
 	"type": "open",
-	"source": "2514452A978F08D1CF76BB40B6AD064183CF275D3CC5D3E0515DC96E2112AD4E",
-	"representative": "ban_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94xr",
+	"source": "E89208DD038FBB269987689621D52292AE9C35941A7484756ECCED92A65093BA",
+	"representative": "xrb_3t6k35gi95xu6tergt6p69ck76ogmitsa8mnijtpxm9fkcm736xtoncuohr3",
 	"account": "ban_1bananobh5rat99qfgt1ptpieie5swmoth87thi74qgbfrij7dcgjiij94xr",
-	"work": "fa055f79fa56abcf",
-	"signature": "533DCAB343547B93C4128E779848DEA5877D3278CB5EA948BB3A9AA1AE0DB293DE6D9DA4F69E8D1DDFA385F9B4C5E4F38DFA42C00D7B183560435D07AFA18900"
+	"work": "62f05417dd3fb691",
+	"signature": "9F0C933C8ADE004D808EA1985FA746A7E95BA2A38F867640F53EC8F180BDFE9E2C1268DEAD7C2664F356E37ABA362BC58E46DBA03E523A7B5A19E4B6EB12BB02"
     })%%%";
 
 std::string const test_genesis_data = nano::get_env_or_default ("NANO_TEST_GENESIS_BLOCK", R"%%%({
 	"type": "open",
 	"source": "45C6FF9D1706D61F0821327752671BDA9F9ED2DA40326B01935AB566FB9E08ED",
-	"representative": "bano_1jg8zygjg3pp5w644emqcbmjqpnzmubfni3kfe1s8pooeuxsw49fdq1mco9j",
+	"representative": "nano_1jg8zygjg3pp5w644emqcbmjqpnzmubfni3kfe1s8pooeuxsw49fdq1mco9j",
 	"account": "bano_1jg8zygjg3pp5w644emqcbmjqpnzmubfni3kfe1s8pooeuxsw49fdq1mco9j",
 	"work": "bc1ef279c1a34eb1",
 	"signature": "15049467CAEE3EC768639E8E35792399B6078DA763DA4EBA8ECAD33B0EDC4AF2E7403893A5A602EB89B978DABEF1D6606BB00F3C0EE11449232B143B6E07170E"
@@ -75,20 +74,20 @@ std::shared_ptr<nano::block> parse_block_from_genesis_data (std::string const & 
 	return nano::deserialize_block_json (tree);
 }
 
-char const * beta_canary_public_key_data = "B61453D27E843EB30B8288E37D5E7C64447F9202E589AB9E573DA4460DF7B21B"; // ban_3finchb9x33ype7r7495hoh9rs46hyb17sebogh7ghf6ar8zheiucm87mfha
-char const * live_canary_public_key_data = "B61453D27E843EB30B8288E37D5E7C64447F9202E589AB9E573DA4460DF7B21B"; // ban_3finchb9x33ype7r7495hoh9rs46hyb17sebogh7ghf6ar8zheiucm87mfha
-std::string const test_canary_public_key_data = nano::get_env_or_default ("NANO_TEST_CANARY_PUB", "B61453D27E843EB30B8288E37D5E7C64447F9202E589AB9E573DA4460DF7B21B"); // ban_3finchb9x33ype7r7495hoh9rs46hyb17sebogh7ghf6ar8zheiucm87mfha
+char const * beta_canary_public_key_data = "868C6A9F79D4506E029B378262B91538C5CB26D7C346B63902FFEB365F1C1947"; // nano_33nefchqmo4ifr3bpfw4ecwjcg87semfhit8prwi7zzd8shjr8c9qdxeqmnx
+char const * live_canary_public_key_data = "7CBAF192A3763DAEC9F9BAC1B2CDF665D8369F8400B4BC5AB4BA31C00BAA4404"; // nano_1z7ty8bc8xjxou6zmgp3pd8zesgr8thra17nqjfdbgjjr17tnj16fjntfqfn
+std::string const test_canary_public_key_data = nano::get_env_or_default ("NANO_TEST_CANARY_PUB", "3BAD2C554ACE05F5E528FBBCE79D51E552C55FA765CCFD89B289C4835DE5F04A"); // nano_1gxf7jcnomi7yqkkjyxwwygo5sckrohtgsgezp6u74g6ifgydw4cajwbk8bf
 }
 
 nano::keypair nano::dev::genesis_key{ dev_private_key_data };
-nano::network_params nano::dev::network_params{ nano::networks::banano_dev_network };
+nano::network_params nano::dev::network_params{ nano::networks::nano_dev_network };
 nano::ledger_constants & nano::dev::constants{ nano::dev::network_params.ledger };
 std::shared_ptr<nano::block> & nano::dev::genesis = nano::dev::constants.genesis;
 
 nano::network_params::network_params (nano::networks network_a) :
-	work{ network_a == nano::networks::banano_live_network ? nano::work_thresholds::publish_full : network_a == nano::networks::banano_beta_network ? nano::work_thresholds::publish_beta
-		: network_a == nano::networks::banano_test_network                                                                                          ? nano::work_thresholds::publish_test
-																																					: nano::work_thresholds::publish_dev },
+	work{ network_a == nano::networks::nano_live_network ? nano::work_thresholds::publish_full : network_a == nano::networks::nano_beta_network ? nano::work_thresholds::publish_beta
+		: network_a == nano::networks::banano_test_network                                                                                        ? nano::work_thresholds::publish_test
+																																				: nano::work_thresholds::publish_dev },
 	network{ work, network_a },
 	ledger{ work, network_a },
 	voting{ network },
@@ -111,25 +110,25 @@ nano::ledger_constants::ledger_constants (nano::work_thresholds & work, nano::ne
 	nano_beta_genesis (parse_block_from_genesis_data (beta_genesis_data)),
 	nano_live_genesis (parse_block_from_genesis_data (live_genesis_data)),
 	nano_test_genesis (parse_block_from_genesis_data (test_genesis_data)),
-	genesis (network_a == nano::networks::banano_dev_network ? nano_dev_genesis : network_a == nano::networks::banano_beta_network ? nano_beta_genesis
-	: network_a == nano::networks::banano_test_network                                                                             ? nano_test_genesis
-																																   : nano_live_genesis),
+	genesis (network_a == nano::networks::nano_dev_network ? nano_dev_genesis : network_a == nano::networks::nano_beta_network ? nano_beta_genesis
+	: network_a == nano::networks::banano_test_network                                                                           ? nano_test_genesis
+																															   : nano_live_genesis),
 	genesis_amount{ std::numeric_limits<nano::uint128_t>::max () },
 	burn_account{},
 	nano_dev_final_votes_canary_account (dev_public_key_data),
 	nano_beta_final_votes_canary_account (beta_canary_public_key_data),
 	nano_live_final_votes_canary_account (live_canary_public_key_data),
 	nano_test_final_votes_canary_account (test_canary_public_key_data),
-	final_votes_canary_account (network_a == nano::networks::banano_dev_network ? nano_dev_final_votes_canary_account : network_a == nano::networks::banano_beta_network ? nano_beta_final_votes_canary_account
-	: network_a == nano::networks::banano_test_network                                                                                                                   ? nano_test_final_votes_canary_account
-																																										 : nano_live_final_votes_canary_account),
+	final_votes_canary_account (network_a == nano::networks::nano_dev_network ? nano_dev_final_votes_canary_account : network_a == nano::networks::nano_beta_network ? nano_beta_final_votes_canary_account
+	: network_a == nano::networks::banano_test_network                                                                                                                 ? nano_test_final_votes_canary_account
+																																									 : nano_live_final_votes_canary_account),
 	nano_dev_final_votes_canary_height (1),
 	nano_beta_final_votes_canary_height (1),
 	nano_live_final_votes_canary_height (1),
 	nano_test_final_votes_canary_height (1),
-	final_votes_canary_height (network_a == nano::networks::banano_dev_network ? nano_dev_final_votes_canary_height : network_a == nano::networks::banano_beta_network ? nano_beta_final_votes_canary_height
-	: network_a == nano::networks::banano_test_network                                                                                                                 ? nano_test_final_votes_canary_height
-																																									   : nano_live_final_votes_canary_height)
+	final_votes_canary_height (network_a == nano::networks::nano_dev_network ? nano_dev_final_votes_canary_height : network_a == nano::networks::nano_beta_network ? nano_beta_final_votes_canary_height
+	: network_a == nano::networks::banano_test_network                                                                                                               ? nano_test_final_votes_canary_height
+																																								   : nano_live_final_votes_canary_height)
 {
 	nano_beta_genesis->sideband_set (nano::block_sideband (nano_beta_genesis->account (), 0, std::numeric_limits<nano::uint128_t>::max (), 1, nano::seconds_since_epoch (), nano::epoch::epoch_0, false, false, false, nano::epoch::epoch_0));
 	nano_dev_genesis->sideband_set (nano::block_sideband (nano_dev_genesis->account (), 0, std::numeric_limits<nano::uint128_t>::max (), 1, nano::seconds_since_epoch (), nano::epoch::epoch_0, false, false, false, nano::epoch::epoch_0));
@@ -143,11 +142,11 @@ nano::ledger_constants::ledger_constants (nano::work_thresholds & work, nano::ne
 
 	nano::link epoch_link_v2;
 	nano::account nano_live_epoch_v2_signer;
-	auto error (nano_live_epoch_v2_signer.decode_account ("bano_3qb6o6i1tkzr6jwr5s7eehfxwg9x6eemitdinbpi7u8bjjwsgqfj4wzser3x"));
+	auto error (nano_live_epoch_v2_signer.decode_account ("nano_3qb6o6i1tkzr6jwr5s7eehfxwg9x6eemitdinbpi7u8bjjwsgqfj4wzser3x"));
 	debug_assert (!error);
-	auto epoch_v2_signer (network_a == nano::networks::banano_dev_network ? nano::dev::genesis_key.pub : network_a == nano::networks::banano_beta_network ? nano_beta_account
-	: network_a == nano::networks::banano_test_network                                                                                                    ? nano_test_account
-																																						  : nano_live_epoch_v2_signer);
+	auto epoch_v2_signer (network_a == nano::networks::nano_dev_network ? nano::dev::genesis_key.pub : network_a == nano::networks::nano_beta_network ? nano_beta_account
+	: network_a == nano::networks::banano_test_network                                                                                                  ? nano_test_account
+																																					  : nano_live_epoch_v2_signer);
 	char const * epoch_message_v2 ("epoch v2 block");
 	strncpy ((char *)epoch_link_v2.bytes.data (), epoch_message_v2, epoch_link_v2.bytes.size ());
 	epochs.add (nano::epoch::epoch_2, epoch_v2_signer, epoch_link_v2);
@@ -222,7 +221,7 @@ nano::keypair::keypair (std::string const & prv_a)
 	ed25519_publickey (prv.bytes.data (), pub.bytes.data ());
 }
 
-nano::account_info::account_info (nano::block_hash const & head_a, nano::account const & representative_a, nano::block_hash const & open_block_a, nano::amount const & balance_a, uint64_t modified_a, uint64_t block_count_a, nano::epoch epoch_a) :
+nano::account_info::account_info (nano::block_hash const & head_a, nano::account const & representative_a, nano::block_hash const & open_block_a, nano::amount const & balance_a, nano::seconds_t modified_a, uint64_t block_count_a, nano::epoch epoch_a) :
 	head (head_a),
 	representative (representative_a),
 	open_block (open_block_a),
@@ -347,16 +346,9 @@ nano::account const & nano::pending_key::key () const
 	return account;
 }
 
-nano::unchecked_info::unchecked_info (std::shared_ptr<nano::block> const & block_a, nano::account const & account_a, nano::signature_verification verified_a) :
+nano::unchecked_info::unchecked_info (std::shared_ptr<nano::block> const & block_a) :
 	block (block_a),
-	account (account_a),
-	modified_m (nano::seconds_since_epoch ()),
-	verified (verified_a)
-{
-}
-
-nano::unchecked_info::unchecked_info (std::shared_ptr<nano::block> const & block) :
-	unchecked_info{ block, block->account (), nano::signature_verification::unknown }
+	modified_m (nano::seconds_since_epoch ())
 {
 }
 
@@ -364,9 +356,7 @@ void nano::unchecked_info::serialize (nano::stream & stream_a) const
 {
 	debug_assert (block != nullptr);
 	nano::serialize_block (stream_a, *block);
-	nano::write (stream_a, account.bytes);
 	nano::write (stream_a, modified_m);
-	nano::write (stream_a, verified);
 }
 
 bool nano::unchecked_info::deserialize (nano::stream & stream_a)
@@ -377,9 +367,7 @@ bool nano::unchecked_info::deserialize (nano::stream & stream_a)
 	{
 		try
 		{
-			nano::read (stream_a, account.bytes);
 			nano::read (stream_a, modified_m);
-			nano::read (stream_a, verified);
 		}
 		catch (std::runtime_error const &)
 		{
@@ -672,7 +660,7 @@ std::shared_ptr<nano::vote> nano::vote_uniquer::unique (std::shared_ptr<nano::vo
 
 size_t nano::vote_uniquer::size ()
 {
-	nano::lock_guard<nano::mutex> lock (mutex);
+	nano::lock_guard<nano::mutex> lock{ mutex };
 	return votes.size ();
 }
 
@@ -752,51 +740,37 @@ void nano::generate_cache::enable_all ()
 
 nano::stat::detail nano::to_stat_detail (nano::process_result process_result)
 {
-	nano::stat::detail result;
 	switch (process_result)
 	{
 		case process_result::progress:
 			return nano::stat::detail::progress;
-			break;
 		case process_result::bad_signature:
 			return nano::stat::detail::bad_signature;
-			break;
 		case process_result::old:
 			return nano::stat::detail::old;
-			break;
 		case process_result::negative_spend:
 			return nano::stat::detail::negative_spend;
-			break;
 		case process_result::fork:
 			return nano::stat::detail::fork;
-			break;
 		case process_result::unreceivable:
 			return nano::stat::detail::unreceivable;
-			break;
 		case process_result::gap_previous:
 			return nano::stat::detail::gap_previous;
-			break;
 		case process_result::gap_source:
 			return nano::stat::detail::gap_source;
-			break;
 		case process_result::gap_epoch_open_pending:
 			return nano::stat::detail::gap_epoch_open_pending;
-			break;
 		case process_result::opened_burn_account:
 			return nano::stat::detail::opened_burn_account;
-			break;
 		case process_result::balance_mismatch:
 			return nano::stat::detail::balance_mismatch;
-			break;
 		case process_result::representative_mismatch:
 			return nano::stat::detail::representative_mismatch;
-			break;
 		case process_result::block_position:
 			return nano::stat::detail::block_position;
-			break;
 		case process_result::insufficient_work:
 			return nano::stat::detail::insufficient_work;
-			break;
 	}
-	return result;
+	debug_assert (false && "There should be always a defined nano::stat::detail that is not _last");
+	return nano::stat::detail::_last;
 }
