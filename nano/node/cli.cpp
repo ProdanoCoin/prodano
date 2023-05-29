@@ -263,6 +263,7 @@ bool copy_database (boost::filesystem::path const & data_path, boost::program_op
 
 std::error_code nano::handle_node_options (boost::program_options::variables_map const & vm)
 {
+	/*
 	std::error_code ec;
 	boost::filesystem::path data_path = vm.count ("data_path") ? boost::filesystem::path (vm["data_path"].as<std::string> ()) : nano::working_path ();
 
@@ -665,7 +666,6 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 			database_write_lock_error (ec);
 		}
 	}
-	/*
 	else if (vm.count ("generate_config"))
 	{
 		auto type = vm["generate_config"].as<std::string> ();
@@ -716,7 +716,6 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 			}
 		}
 	}
-	*/
 	else if (vm.count ("diagnostics"))
 	{
 		auto inactive_node = nano::default_inactive_node (data_path, vm);
@@ -1549,6 +1548,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 	}
 
 	return ec;
+	*/
 }
 
 std::unique_ptr<nano::inactive_node> nano::default_inactive_node (boost::filesystem::path const & path_a, boost::program_options::variables_map const & vm_a)
