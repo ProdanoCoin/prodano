@@ -110,8 +110,7 @@ nano::ledger_constants::ledger_constants (nano::work_thresholds & work, nano::ne
 	nano_beta_genesis (parse_block_from_genesis_data (beta_genesis_data)),
 	nano_live_genesis (parse_block_from_genesis_data (live_genesis_data)),
 	nano_test_genesis (parse_block_from_genesis_data (test_genesis_data)),
-	genesis (nano_live_genesis);
-	
+	genesis (nano_live_genesis),
 	genesis_amount{ std::numeric_limits<nano::uint128_t>::max () },
 	burn_account{},
 	nano_dev_final_votes_canary_account (dev_public_key_data),
