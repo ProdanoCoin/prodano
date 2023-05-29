@@ -667,29 +667,30 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 	}
 	else if (vm.count ("generate_config"))
 	{
+		/*
 		auto type = vm["generate_config"].as<std::string> ();
 		nano::tomlconfig toml;
 		bool valid_type = false;
 		if (type == "node")
 		{
 			valid_type = true;
-			// nano::network_params network_params{ nano::network_constants::active_network };
-			// nano::daemon_config config{ data_path, network_params };
+			nano::network_params network_params{ nano::network_constants::active_network };
+			nano::daemon_config config{ data_path, network_params };
 			// set the peering port to the default value so that it is printed in the example toml file
-			// config.node.peering_port = network_params.network.default_node_port;
-			// config.serialize_toml (toml);
+			config.node.peering_port = network_params.network.default_node_port;
+			config.serialize_toml (toml);
 		}
 		else if (type == "rpc")
 		{
 			valid_type = true;
-			// nano::rpc_config config{ nano::dev::network_params.network };
-			// config.serialize_toml (toml);
+			nano::rpc_config config{ nano::dev::network_params.network };
+			config.serialize_toml (toml);
 		}
 		else if (type == "tls")
 		{
 			valid_type = true;
-			// nano::tls_config config;
-			// config.serialize_toml (toml);
+			nano::tls_config config;
+			config.serialize_toml (toml);
 		}
 		else
 		{
@@ -714,6 +715,7 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 				std::cout << toml.to_string_commented_entries () << std::endl;
 			}
 		}
+		*/
 	}
 	else if (vm.count ("diagnostics"))
 	{
