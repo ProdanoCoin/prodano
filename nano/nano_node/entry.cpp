@@ -81,9 +81,9 @@ int main (int argc, char * const * argv)
 		("debug_verify_profile_batch", "Profile batch signature verification")
 		("debug_profile_bootstrap", "Profile bootstrap style blocks processing (at least 10GB of free storage space required)")
 		("debug_profile_sign", "Profile signature generation")
-		("debug_profile_process", "Profile active blocks processing (only for nano_dev_network)")
-		("debug_profile_votes", "Profile votes processing (only for nano_dev_network)")
-		("debug_profile_frontiers_confirmation", "Profile frontiers confirmation speed (only for nano_dev_network)")
+		("debug_profile_process", "Profile active blocks processing (only for banano_dev_network)")
+		("debug_profile_votes", "Profile votes processing (only for banano_dev_network)")
+		("debug_profile_frontiers_confirmation", "Profile frontiers confirmation speed (only for banano_dev_network)")
 		("debug_random_feed", "Generates output to RNG test suites")
 		("debug_rpc", "Read an RPC command from stdin and invoke it. Network operations will have no effect.")
 		("debug_peers", "Display peer IPv6:port connections")
@@ -149,7 +149,7 @@ int main (int argc, char * const * argv)
 		}
 		else if (vm.count ("compare_rep_weights"))
 		{
-			if (nano::network_constants::active_network != nano::networks::nano_dev_network)
+			if (nano::network_constants::active_network != nano::networks::banano_dev_network)
 			{
 				auto node_flags = nano::inactive_node_flag_defaults ();
 				nano::update_flags (node_flags, vm);
