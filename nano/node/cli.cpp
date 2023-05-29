@@ -665,9 +665,9 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 			database_write_lock_error (ec);
 		}
 	}
+	/*
 	else if (vm.count ("generate_config"))
 	{
-		/*
 		auto type = vm["generate_config"].as<std::string> ();
 		nano::tomlconfig toml;
 		bool valid_type = false;
@@ -715,8 +715,8 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 				std::cout << toml.to_string_commented_entries () << std::endl;
 			}
 		}
-		*/
 	}
+	*/
 	else if (vm.count ("diagnostics"))
 	{
 		auto inactive_node = nano::default_inactive_node (data_path, vm);
