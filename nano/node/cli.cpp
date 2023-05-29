@@ -5,7 +5,7 @@
 #include <nano/node/common.hpp>
 #include <nano/node/daemonconfig.hpp>
 #include <nano/node/node.hpp>
-#include <fstream>
+
 #include <boost/format.hpp>
 
 namespace
@@ -104,9 +104,6 @@ void nano::add_node_flag_options (boost::program_options::options_description & 
 		("disable_rep_crawler", "Disable rep crawler")
 		("disable_request_loop", "Disable request loop")
 		("disable_bootstrap_listener", "Disables bootstrap processing for TCP listener (not including realtime network TCP connections)")
-		("disable_tcp_realtime", "Disables TCP realtime network")
-		("disable_udp", "(Deprecated) UDP is disabled by default")
-		("enable_udp", "Enables UDP realtime network")
 		("disable_unchecked_cleanup", "Disables periodic cleanup of old records from unchecked table")
 		("disable_unchecked_drop", "Disables drop of unchecked table at startup")
 		("disable_providing_telemetry_metrics", "Disable using any node information in the telemetry_ack messages.")
@@ -264,7 +261,6 @@ bool copy_database (boost::filesystem::path const & data_path, boost::program_op
 std::error_code nano::handle_node_options (boost::program_options::variables_map const & vm)
 {
 	std::error_code ec;
-	/*
 	boost::filesystem::path data_path = vm.count ("data_path") ? boost::filesystem::path (vm["data_path"].as<std::string> ()) : nano::working_path ();
 
 	if (vm.count ("initialize"))
@@ -1547,7 +1543,6 @@ std::error_code nano::handle_node_options (boost::program_options::variables_map
 		ec = nano::error_cli::unknown_command;
 	}
 
-	*/
 	return ec;
 }
 
