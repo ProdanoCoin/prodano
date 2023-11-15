@@ -4578,7 +4578,6 @@ void nano::json_handler::wallet_info ()
 				cemented_block_count += confirmation_info.height;
 			}
 
-			balance += account_info->balance.number ();
 			receivable += node.ledger.account_receivable (block_transaction, account);
 
 			nano::key_type key_type (wallet->store.key_type (i->second));
