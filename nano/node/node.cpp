@@ -8,7 +8,9 @@
 #include <nano/node/make_store.hpp>
 #include <nano/node/node.hpp>
 #include <nano/node/scheduler/component.hpp>
+#include <nano/rpc/rpc.hpp>
 #include <nano/node/scheduler/hinted.hpp>
+#include <nano/test_common/system.hpp>
 #include <nano/node/scheduler/manual.hpp>
 #include <nano/node/scheduler/optimistic.hpp>
 #include <nano/node/scheduler/priority.hpp>

@@ -158,12 +158,6 @@ void nano::election::transition_active ()
 
 bool nano::election::confirmed () const
 {
-	nano::unique_lock<nano::mutex> lock{ mutex };
-	return confirmed (lock);
-}
-
-bool nano::election::status_confirmed () const
-{
 	return state_m == nano::election::state_t::confirmed || state_m == nano::election::state_t::expired_confirmed;
 }
 
@@ -189,7 +183,7 @@ void nano::election::broadcast_vote ()
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	if (last_vote + std::chrono::milliseconds (node.config.network_params.network.vote_broadcast_interval) < std::chrono::steady_clock::now ())
 	{
-		broadcast_vote_impl (lock);
+		broadcast_vote_impl ();
 		last_vote = std::chrono::steady_clock::now ();
 	}
 }
@@ -502,7 +496,7 @@ bool nano::election::publish (std::shared_ptr<nano::block> const & block_a)
 	nano::unique_lock<nano::mutex> lock{ mutex };
 
 	// Do not insert new blocks if already confirmed
-	auto result = confirmed (lock);
+	auto result (confirmed ());
 	if (!result && last_blocks.size () >= max_blocks && last_blocks.find (block_a->hash ()) == last_blocks.end ())
 	{
 		if (!replace_by_weight (lock, block_a->hash ()))
@@ -555,7 +549,7 @@ std::shared_ptr<nano::block> nano::election::winner () const
 	return status.winner;
 }
 
-void nano::election::broadcast_vote_impl (nano::unique_lock<nano::mutex> & lock)
+void nano::election::broadcast_vote_impl ()
 {
 	debug_assert (!mutex.try_lock ());
 
@@ -563,7 +557,7 @@ void nano::election::broadcast_vote_impl (nano::unique_lock<nano::mutex> & lock)
 	{
 		node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote);
 
-		if (confirmed (lock) || have_quorum (tally_impl ()))
+		if (confirmed () || have_quorum (tally_impl ()))
 		{
 			node.stats.inc (nano::stat::type::election, nano::stat::detail::generate_vote_final);
 			node.final_generator.add (root, status.winner->hash ()); // Broadcasts vote to the network

@@ -1312,7 +1312,7 @@ TEST (rpc, history_pruning)
 	ASSERT_EQ ("receive", entry.get<std::string> ("type"));
 	ASSERT_EQ (ureceive->hash ().to_string (), entry.get<std::string> ("hash"));
 	ASSERT_EQ (nano::dev::genesis_key.pub.to_account (), entry.get<std::string> ("account", "N/A"));
-	ASSERT_EQ (nano::Gxrb_ratio.convert_to<std::string> (), entry.get<std::string> ("amount", "N/A"));
+	ASSERT_EQ (nano::MBAN_ratio.convert_to<std::string> (), entry.get<std::string> ("amount", "N/A"));
 
 	// second array element
 	entry = (*(++history_node.begin ())).second;
@@ -3205,7 +3205,7 @@ TEST (rpc, wallet_info)
 	nano::keypair key;
 	system.wallet (0)->insert_adhoc (key.prv);
 
-	auto send (system.wallet (0)->send_action (nano::dev::genesis_key.pub, key.pub, nano::Gxrb_ratio));
+	auto send (system.wallet (0)->send_action (nano::dev::genesis_key.pub, key.pub, nano::MBAN_ratio));
 	// after the send, expect 2 blocks immediately, then 2 confirmed in a timely manner,
 	// and finally 3 blocks and 3 confirmed after the wallet generates the receive block for this send
 	ASSERT_TIMELY (5s, node->block_confirmed (send->hash ())); // Send gets confirmed

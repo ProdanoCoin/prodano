@@ -366,6 +366,7 @@ void nano::bootstrap_ascending::service::process (nano::asc_pull_ack const & mes
 
 		on_reply.notify (tag);
 		condition.notify_all ();
+
 		std::visit ([this, &tag] (auto && request) { return process (request, tag); }, message.payload);
 	}
 	else

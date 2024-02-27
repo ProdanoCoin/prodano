@@ -96,12 +96,6 @@ void nano::test::rate_observer::observe (std::string name, std::function<int64_t
 	counters.push_back (counter_instance);
 }
 
-void nano::test::rate_observer::observe (std::string name, std::function<int64_t ()> observe)
-{
-	auto counter_instance = std::make_shared<counter> (name, observe);
-	counters.push_back (counter_instance);
-}
-
 void nano::test::rate_observer::observe (nano::node & node, nano::stat::type type, nano::stat::detail detail, nano::stat::dir dir)
 {
 	auto name = std::string{ nano::to_string (type) } + "::" + std::string{ nano::to_string (detail) } + "::" + std::string{ nano::to_string (dir) };
