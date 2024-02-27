@@ -1,6 +1,6 @@
 add_executable(banano_rpc entry.cpp)
 
-target_link_libraries(nano_rpc node)
+target_link_libraries(banano_rpc node)
 
 target_compile_definitions(
   banano_rpc
