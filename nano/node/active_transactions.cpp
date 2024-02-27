@@ -292,7 +292,7 @@ void nano::active_transactions::request_confirm (nano::unique_lock<nano::mutex> 
 		bool const confirmed_l (election_l->confirmed ());
 		unconfirmed_count_l += !confirmed_l;
 
-		if (confirmed_l || election_l->transition_time (solicitor))
+		if (election_l->transition_time (solicitor))
 		{
 			erase (election_l->qualified_root);
 		}
