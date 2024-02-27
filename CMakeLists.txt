@@ -37,7 +37,7 @@ if(MSVC)
   add_definitions(/MP)
 endif()
 
-set(CPACK_PACKAGE_VENDOR "Banano Currency")
+set(CPACK_PACKAGE_VENDOR "Bananocoin")
 set(CPACK_PACKAGE_VERSION_MAJOR "26")
 set(CPACK_PACKAGE_VERSION_MINOR "1")
 set(CPACK_PACKAGE_VERSION_PATCH "0")
