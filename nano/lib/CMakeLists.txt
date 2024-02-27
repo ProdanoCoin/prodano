@@ -25,6 +25,7 @@ add_library(
   blockbuilders.cpp
   blocks.hpp
   blocks.cpp
+  char_traits.hpp
   cli.hpp
   cli.cpp
   config.hpp
@@ -38,6 +39,8 @@ add_library(
   epoch.cpp
   errors.hpp
   errors.cpp
+  id_dispenser.hpp
+  interval.hpp
   ipc.hpp
   ipc.cpp
   ipc_client.hpp
@@ -76,8 +79,12 @@ add_library(
   stats_enums.hpp
   stats_enums.cpp
   stream.hpp
+  thread_pool.hpp
+  thread_pool.cpp
   thread_roles.hpp
   thread_roles.cpp
+  thread_runner.hpp
+  thread_runner.cpp
   threading.hpp
   threading.cpp
   timer.hpp
@@ -86,6 +93,7 @@ add_library(
   tlsconfig.cpp
   tomlconfig.hpp
   tomlconfig.cpp
+  uniquer.hpp
   utility.hpp
   utility.cpp
   walletconfig.hpp
@@ -100,13 +108,12 @@ include_directories(
 
 target_link_libraries(
   nano_lib
-  ed25519
+  ipc_flatbuffers_lib
   crypto_lib
   blake2
-  secure
-  ipc_flatbuffers_lib
   ${CRYPTOPP_LIBRARY}
   ${CMAKE_DL_LIBS}
+  Boost::iostreams
   Boost::asio
   Boost::circular_buffer
   Boost::dll
@@ -126,5 +133,4 @@ target_compile_definitions(
           -DMINOR_VERSION_STRING=${CPACK_PACKAGE_VERSION_MINOR}
           -DPATCH_VERSION_STRING=${CPACK_PACKAGE_VERSION_PATCH}
           -DPRE_RELEASE_VERSION_STRING=${CPACK_PACKAGE_VERSION_PRE_RELEASE}
-          -DCI=${CI_TEST}
   PUBLIC -DACTIVE_NETWORK=${ACTIVE_NETWORK})

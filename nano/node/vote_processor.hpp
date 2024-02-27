@@ -13,7 +13,10 @@ namespace nano
 {
 class signature_checker;
 class active_transactions;
-class store;
+namespace store
+{
+	class component;
+}
 class node_observers;
 class stats;
 class node_config;
@@ -25,7 +28,6 @@ class network_params;
 class node_flags;
 class stats;
 
-class transaction;
 namespace transport
 {
 	class channel;
@@ -34,7 +36,7 @@ namespace transport
 class vote_processor final
 {
 public:
-	vote_processor (nano::signature_checker & checker_a, nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stats & stats_a, nano::node_config & config_a, nano::node_flags & flags_a, nano::logger_mt & logger_a, nano::online_reps & online_reps_a, nano::rep_crawler & rep_crawler_a, nano::ledger & ledger_a, nano::network_params & network_params_a);
+	vote_processor (nano::active_transactions & active_a, nano::node_observers & observers_a, nano::stats & stats_a, nano::node_config & config_a, nano::node_flags & flags_a, nano::logger_mt & logger_a, nano::online_reps & online_reps_a, nano::rep_crawler & rep_crawler_a, nano::ledger & ledger_a, nano::network_params & network_params_a);
 
 	/** Returns false if the vote was processed */
 	bool vote (std::shared_ptr<nano::vote> const &, std::shared_ptr<nano::transport::channel> const &);
@@ -54,7 +56,6 @@ public:
 private:
 	void process_loop ();
 
-	nano::signature_checker & checker;
 	nano::active_transactions & active;
 	nano::node_observers & observers;
 	nano::stats & stats;

@@ -1,10 +1,12 @@
+#include <nano/lib/stream.hpp>
 #include <nano/node/common.hpp>
-#include <nano/secure/buffer.hpp>
 #include <nano/test_common/testutil.hpp>
 
 #include <gtest/gtest.h>
 
 #include <boost/property_tree/json_parser.hpp>
+
+#include <thread>
 
 #include <crypto/ed25519-donna/ed25519.h>
 
@@ -589,17 +591,14 @@ TEST (block_uniquer, cleanup)
 				  .build_shared ();
 
 	nano::block_uniquer uniquer;
-	auto block3 (uniquer.unique (block1));
-	auto block4 (uniquer.unique (block2));
+	auto block3 = uniquer.unique (block1);
+	auto block4 = uniquer.unique (block2);
 	block2.reset ();
 	block4.reset ();
 	ASSERT_EQ (2, uniquer.size ());
-	auto iterations (0);
-	while (uniquer.size () == 2)
-	{
-		auto block5 (uniquer.unique (block1));
-		ASSERT_LT (iterations++, 200);
-	}
+	std::this_thread::sleep_for (nano::block_uniquer::cleanup_cutoff);
+	auto block5 = uniquer.unique (block1);
+	ASSERT_EQ (1, uniquer.size ());
 }
 
 TEST (block_builder, from)

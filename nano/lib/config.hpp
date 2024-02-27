@@ -6,18 +6,11 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <filesystem>
 #include <optional>
 #include <string>
 
 using namespace std::chrono_literals;
-
-namespace boost
-{
-namespace filesystem
-{
-	class path;
-}
-}
 
 #define xstr(a) ver_str (a)
 #define ver_str(a) #a
@@ -205,6 +198,7 @@ public:
 		default_websocket_port (47000),
 		aec_loop_interval_ms (300), // Update AEC ~3 times per second
 		cleanup_period (default_cleanup_period),
+		merge_period (std::chrono::milliseconds (250)),
 		keepalive_period (std::chrono::seconds (15)),
 		idle_timeout (default_cleanup_period * 2),
 		silent_connection_tolerance_time (std::chrono::seconds (120)),
@@ -241,6 +235,7 @@ public:
 		{
 			aec_loop_interval_ms = 20;
 			cleanup_period = std::chrono::seconds (1);
+			merge_period = std::chrono::milliseconds (10);
 			keepalive_period = std::chrono::seconds (1);
 			idle_timeout = cleanup_period * 15;
 			max_peers_per_ip = 20;
@@ -278,6 +273,8 @@ public:
 	{
 		return cleanup_period * 5;
 	}
+	/** How often to connect to other peers */
+	std::chrono::milliseconds merge_period;
 	/** How often to send keepalive messages */
 	std::chrono::seconds keepalive_period;
 	/** Default maximum idle time for a socket before it's automatically closed */
@@ -379,19 +376,20 @@ public:
 
 	/** Initial value is ACTIVE_NETWORK compile flag, but can be overridden by a CLI flag */
 	static nano::networks active_network;
+
 	/** Current protocol version */
-	uint8_t const protocol_version = 0x13;
+	uint8_t const protocol_version = 0x14;
 	/** Minimum accepted protocol version */
 	uint8_t const protocol_version_min = 0x12;
 	/** Minimum accepted protocol version used when bootstrapping */
 	uint8_t const bootstrap_protocol_version_min = 0x13;
 };
 
-std::string get_node_toml_config_path (boost::filesystem::path const & data_path);
-std::string get_rpc_toml_config_path (boost::filesystem::path const & data_path);
-std::string get_access_toml_config_path (boost::filesystem::path const & data_path);
-std::string get_qtwallet_toml_config_path (boost::filesystem::path const & data_path);
-std::string get_tls_toml_config_path (boost::filesystem::path const & data_path);
+std::string get_node_toml_config_path (std::filesystem::path const & data_path);
+std::string get_rpc_toml_config_path (std::filesystem::path const & data_path);
+std::string get_access_toml_config_path (std::filesystem::path const & data_path);
+std::string get_qtwallet_toml_config_path (std::filesystem::path const & data_path);
+std::string get_tls_toml_config_path (std::filesystem::path const & data_path);
 
 /** Checks if we are running inside a valgrind instance */
 bool running_within_valgrind ();

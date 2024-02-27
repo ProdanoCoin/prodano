@@ -1,4 +1,4 @@
-#include <nano/secure/versioning.hpp>
+#include <nano/store/versioning.hpp>
 #include <nano/test_common/system.hpp>
 #include <nano/test_common/testutil.hpp>
 
@@ -73,7 +73,9 @@ TEST (wallets, remove)
 	}
 }
 
-TEST (wallets, reload)
+// Opening multiple environments using the same file within the same process is not supported.
+// http://www.lmdb.tech/doc/starting.html
+TEST (wallets, DISABLED_reload)
 {
 	nano::test::system system (1);
 	auto & node1 (*system.nodes[0]);
@@ -185,7 +187,7 @@ TEST (wallets, search_receivable)
 	for (auto search_all : { false, true })
 	{
 		nano::test::system system;
-		nano::node_config config (nano::test::get_available_port (), system.logging);
+		nano::node_config config = system.default_config ();
 		config.enable_voting = false;
 		config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 		nano::node_flags flags;
@@ -222,8 +224,8 @@ TEST (wallets, search_receivable)
 		{
 			node.wallets.search_receivable (wallet_id);
 		}
-		auto election = node.active.election (send->qualified_root ());
-		ASSERT_NE (nullptr, election);
+		std::shared_ptr<nano::election> election;
+		ASSERT_TIMELY (5s, election = node.active.election (send->qualified_root ()));
 
 		// Erase the key so the confirmation does not trigger an automatic receive
 		wallet->store.erase (node.wallets.tx_begin_write (), nano::dev::genesis->account ());

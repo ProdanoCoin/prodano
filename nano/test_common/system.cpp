@@ -3,6 +3,7 @@
 #include <nano/test_common/system.hpp>
 #include <nano/test_common/testutil.hpp>
 
+#include <boost/asio.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
 #include <cstdlib>
@@ -74,7 +75,7 @@ std::shared_ptr<nano::node> nano::test::system::add_node (nano::node_config cons
 			(*j)->network.merge_peer ((*i)->network.endpoint ());
 
 			{
-				auto ec = poll_until_true (3s, [&node1, &node2, starting_size_1, starting_size_2] () {
+				auto ec = poll_until_true (5s, [&node1, &node2, starting_size_1, starting_size_2] () {
 					auto size_1 = node1->network.size ();
 					auto size_2 = node2->network.size ();
 					return size_1 > starting_size_1 && size_2 > starting_size_2;
@@ -86,7 +87,7 @@ std::shared_ptr<nano::node> nano::test::system::add_node (nano::node_config cons
 			{
 				{
 					// Wait for initial connection finish
-					auto ec = poll_until_true (3s, [&node1, &node2, starting_realtime_1, starting_realtime_2] () {
+					auto ec = poll_until_true (5s, [&node1, &node2, starting_realtime_1, starting_realtime_2] () {
 						auto realtime_1 = node1->tcp_listener.realtime_count.load ();
 						auto realtime_2 = node2->tcp_listener.realtime_count.load ();
 						return realtime_1 > starting_realtime_1 && realtime_2 > starting_realtime_2;
@@ -95,7 +96,7 @@ std::shared_ptr<nano::node> nano::test::system::add_node (nano::node_config cons
 				}
 				{
 					// Wait for keepalive message exchange
-					auto ec = poll_until_true (3s, [&node1, &node2, starting_keepalives_1, starting_keepalives_2] () {
+					auto ec = poll_until_true (5s, [&node1, &node2, starting_keepalives_1, starting_keepalives_2] () {
 						auto keepalives_1 = node1->stats.count (stat::type::message, stat::detail::keepalive, stat::dir::in);
 						auto keepalives_2 = node2->stats.count (stat::type::message, stat::detail::keepalive, stat::dir::in);
 						return keepalives_1 > starting_keepalives_1 && keepalives_2 > starting_keepalives_2;
@@ -107,7 +108,7 @@ std::shared_ptr<nano::node> nano::test::system::add_node (nano::node_config cons
 
 		{
 			// Ensure no bootstrap initiators are in progress
-			auto ec = poll_until_true (3s, [this, &begin] () {
+			auto ec = poll_until_true (5s, [this, &begin] () {
 				return std::all_of (begin, nodes.end (), [] (std::shared_ptr<nano::node> const & node_a) { return !node_a->bootstrap_initiator.in_progress (); });
 			});
 			debug_assert (!ec);
@@ -115,7 +116,7 @@ std::shared_ptr<nano::node> nano::test::system::add_node (nano::node_config cons
 	}
 	else
 	{
-		auto ec = poll_until_true (3s, [&node] () {
+		auto ec = poll_until_true (5s, [&node] () {
 			return !node->bootstrap_initiator.in_progress ();
 		});
 		debug_assert (!ec);
@@ -202,7 +203,7 @@ std::shared_ptr<nano::wallet> nano::test::system::wallet (size_t index_a)
 	return nodes[index_a]->wallets.items.begin ()->second;
 }
 
-nano::account nano::test::system::account (nano::transaction const & transaction_a, size_t index_a)
+nano::account nano::test::system::account (store::transaction const & transaction_a, size_t index_a)
 {
 	auto wallet_l (wallet (index_a));
 	auto keys (wallet_l->store.begin (transaction_a));
@@ -450,7 +451,7 @@ nano::account nano::test::system::get_random_account (std::vector<nano::account>
 	return result;
 }
 
-nano::uint128_t nano::test::system::get_random_amount (nano::transaction const & transaction_a, nano::node & node_a, nano::account const & account_a)
+nano::uint128_t nano::test::system::get_random_amount (store::transaction const & transaction_a, nano::node & node_a, nano::account const & account_a)
 {
 	nano::uint128_t balance (node_a.ledger.account_balance (transaction_a, account_a));
 	nano::uint128_union random_amount;
@@ -467,7 +468,7 @@ void nano::test::system::generate_send_existing (nano::node & node_a, std::vecto
 		nano::account account;
 		random_pool::generate_block (account.bytes.data (), sizeof (account.bytes));
 		auto transaction (node_a.store.tx_begin_read ());
-		nano::store_iterator<nano::account, nano::account_info> entry (node_a.store.account.begin (transaction, account));
+		store::iterator<nano::account, nano::account_info> entry (node_a.store.account.begin (transaction, account));
 		if (entry == node_a.store.account.end ())
 		{
 			entry = node_a.store.account.begin (transaction);
@@ -562,32 +563,60 @@ void nano::test::system::stop ()
 
 nano::node_config nano::test::system::default_config ()
 {
-	nano::node_config config{ nano::test::get_available_port (), logging };
+	nano::node_config config{ get_available_port (), logging };
 	return config;
 }
 
-uint16_t nano::test::get_available_port ()
+uint16_t nano::test::system::get_available_port (bool can_be_zero)
 {
-	// Maximum possible sockets which may feasibly be used in 1 test
-	constexpr auto max = 200;
-	static uint16_t current = 0;
-	// Read the TEST_BASE_PORT environment and override the default base port if it exists
-	auto base_str = std::getenv ("TEST_BASE_PORT");
-	uint16_t base_port = 24000;
-	if (base_str)
+	auto base_port_str = std::getenv ("NANO_TEST_BASE_PORT");
+	if (base_port_str)
 	{
-		base_port = boost::lexical_cast<uint16_t> (base_str);
-	}
+		// Maximum possible sockets which may feasibly be used in 1 test
+		constexpr auto max = 200;
+		static uint16_t current = 0;
+		// Read the TEST_BASE_PORT environment and override the default base port if it exists
+		uint16_t base_port = boost::lexical_cast<uint16_t> (base_port_str);
 
-	uint16_t const available_port = base_port + current;
-	++current;
-	// Reset port number once we have reached the maximum
-	if (current == max)
+		uint16_t const available_port = base_port + current;
+		++current;
+		// Reset port number once we have reached the maximum
+		if (current == max)
+		{
+			current = 0;
+		}
+
+		return available_port;
+	}
+	else
 	{
-		current = 0;
-	}
+		if (!can_be_zero)
+		{
+			/*
+			 * This works because the kernel doesn't seem to reuse port numbers until it absolutely has to.
+			 * Subsequent binds to port 0 will allocate a different port number.
+			 */
+			boost::asio::ip::tcp::acceptor acceptor{ io_ctx };
+			boost::asio::ip::tcp::tcp::endpoint endpoint{ boost::asio::ip::tcp::v4 (), 0 };
+			acceptor.open (endpoint.protocol ());
 
-	return available_port;
+			boost::asio::socket_base::reuse_address option{ true };
+			acceptor.set_option (option); // set SO_REUSEADDR option
+
+			acceptor.bind (endpoint);
+
+			auto actual_endpoint = acceptor.local_endpoint ();
+			auto port = actual_endpoint.port ();
+
+			acceptor.close ();
+
+			return port;
+		}
+		else
+		{
+			return 0;
+		}
+	}
 }
 
 void nano::test::cleanup_dev_directories_on_exit ()

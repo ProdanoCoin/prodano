@@ -6,7 +6,8 @@
 #include <nano/node/transport/transport.hpp>
 #include <nano/secure/common.hpp>
 #include <nano/secure/ledger.hpp>
-#include <nano/secure/store.hpp>
+#include <nano/store/account.hpp>
+#include <nano/store/component.hpp>
 
 using namespace std::chrono_literals;
 
@@ -124,7 +125,7 @@ std::size_t nano::bootstrap_ascending::service::score_size () const
 - Marks an account as blocked if the result code is gap source as there is no reason request additional blocks for this account until the dependency is resolved
 - Marks an account as forwarded if it has been recently referenced by a block that has been inserted.
  */
-void nano::bootstrap_ascending::service::inspect (nano::transaction const & tx, nano::process_return const & result, nano::block const & block)
+void nano::bootstrap_ascending::service::inspect (store::transaction const & tx, nano::process_return const & result, nano::block const & block)
 {
 	auto const hash = block.hash ();
 
@@ -193,9 +194,9 @@ void nano::bootstrap_ascending::service::inspect (nano::transaction const & tx, 
 void nano::bootstrap_ascending::service::wait_blockprocessor ()
 {
 	nano::unique_lock<nano::mutex> lock{ mutex };
-	while (!stopped && block_processor.half_full ())
+	while (!stopped && block_processor.size () > config.bootstrap_ascending.block_wait_count)
 	{
-		condition.wait_for (lock, 500ms, [this] () { return stopped; }); // Blockprocessor is relatively slow, sleeping here instead of using conditions
+		condition.wait_for (lock, std::chrono::milliseconds{ config.bootstrap_ascending.throttle_wait }, [this] () { return stopped; }); // Blockprocessor is relatively slow, sleeping here instead of using conditions
 	}
 }
 
@@ -205,7 +206,7 @@ std::shared_ptr<nano::transport::channel> nano::bootstrap_ascending::service::wa
 	nano::unique_lock<nano::mutex> lock{ mutex };
 	while (!stopped && !(channel = scoring.channel ()))
 	{
-		condition.wait_for (lock, 100ms, [this] () { return stopped; });
+		condition.wait_for (lock, std::chrono::milliseconds{ config.bootstrap_ascending.throttle_wait }, [this] () { return stopped; });
 	}
 	return channel;
 }
@@ -415,6 +416,11 @@ void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::acco
 	// TODO: Make use of account info
 }
 
+void nano::bootstrap_ascending::service::process (const nano::asc_pull_ack::frontiers_payload & response, const nano::bootstrap_ascending::service::async_tag & tag)
+{
+	// TODO: Make use of frontiers info
+}
+
 void nano::bootstrap_ascending::service::process (const nano::empty_payload & response, const nano::bootstrap_ascending::service::async_tag & tag)
 {
 	// Should not happen
@@ -505,6 +511,8 @@ std::unique_ptr<nano::container_info_component> nano::bootstrap_ascending::servi
 
 	auto composite = std::make_unique<container_info_composite> (name);
 	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "tags", tags.size (), sizeof (decltype (tags)::value_type) }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "throttle", throttle.size (), 0 }));
+	composite->add_component (std::make_unique<container_info_leaf> (container_info{ "throttle_successes", throttle.successes (), 0 }));
 	composite->add_component (accounts.collect_container_info ("accounts"));
 	return composite;
 }

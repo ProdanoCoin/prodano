@@ -1,10 +1,10 @@
 #include <nano/lib/threading.hpp>
 #include <nano/node/backlog_population.hpp>
-#include <nano/node/election_scheduler.hpp>
 #include <nano/node/nodeconfig.hpp>
-#include <nano/secure/store.hpp>
+#include <nano/node/scheduler/priority.hpp>
+#include <nano/store/component.hpp>
 
-nano::backlog_population::backlog_population (const config & config_a, nano::store & store_a, nano::stats & stats_a) :
+nano::backlog_population::backlog_population (const config & config_a, nano::store::component & store_a, nano::stats & stats_a) :
 	config_m{ config_a },
 	store{ store_a },
 	stats{ stats_a }
@@ -95,6 +95,8 @@ void nano::backlog_population::populate_backlog (nano::unique_lock<nano::mutex> 
 			auto const end = store.account.end ();
 			for (; i != end && count < chunk_size; ++i, ++count, ++total)
 			{
+				transaction.refresh_if_needed ();
+
 				stats.inc (nano::stat::type::backlog, nano::stat::detail::total);
 
 				auto const & account = i->first;
@@ -111,7 +113,7 @@ void nano::backlog_population::populate_backlog (nano::unique_lock<nano::mutex> 
 	}
 }
 
-void nano::backlog_population::activate (nano::transaction const & transaction, nano::account const & account)
+void nano::backlog_population::activate (store::transaction const & transaction, nano::account const & account)
 {
 	debug_assert (!activate_callback.empty ());
 
