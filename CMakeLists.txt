@@ -693,7 +693,7 @@ add_custom_target(
   executables
   COMMAND echo "BATCH BUILDING node + rpc"
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-  DEPENDS nano_node nano_rpc)
+  DEPENDS banano_node banano_rpc)
 
 if(NANO_FUZZER_TEST)
   if(NOT WIN32)
@@ -736,7 +736,7 @@ if(NANO_TEST OR RAIBLOCKS_TEST)
     all_tests
     COMMAND echo "BATCH BUILDING TESTS"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    DEPENDS core_test load_test rpc_test slow_test nano_node nano_rpc)
+    DEPENDS core_test load_test rpc_test slow_test banano_node banano_rpc)
 endif()
 
 if(NANO_TEST OR RAIBLOCKS_TEST)
@@ -848,11 +848,11 @@ if(NANO_GUI OR RAIBLOCKS_GUI)
     set(CPACK_GENERATOR "DragNDrop")
     configure_file(${CMAKE_SOURCE_DIR}/Info.plist.in
                    ${CMAKE_SOURCE_DIR}/Info.plist @ONLY)
-    install(TARGETS nano_wallet
+    install(TARGETS banano_wallet
             DESTINATION ${NANO_OSX_PACKAGE_NAME}.app/Contents/MacOS)
-    install(TARGETS nano_node
+    install(TARGETS banano_node
             DESTINATION ${NANO_OSX_PACKAGE_NAME}.app/Contents/MacOS)
-    install(TARGETS nano_rpc
+    install(TARGETS banano_rpc
             DESTINATION ${NANO_OSX_PACKAGE_NAME}.app/Contents/MacOS)
     install(FILES Info.plist DESTINATION ${NANO_OSX_PACKAGE_NAME}.app/Contents)
     install(FILES qt.conf
