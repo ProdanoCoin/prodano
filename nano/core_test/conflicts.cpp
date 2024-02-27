@@ -1,4 +1,6 @@
 #include <nano/node/election.hpp>
+#include <nano/node/scheduler/component.hpp>
+#include <nano/node/scheduler/priority.hpp>
 #include <nano/test_common/system.hpp>
 #include <nano/test_common/testutil.hpp>
 
@@ -25,7 +27,7 @@ TEST (conflicts, start_stop)
 	node1.work_generate_blocking (*send1);
 	ASSERT_EQ (nano::process_result::progress, node1.process (*send1).code);
 	ASSERT_EQ (0, node1.active.size ());
-	node1.scheduler.activate (nano::dev::genesis_key.pub, node1.store.tx_begin_read ());
+	node1.scheduler.priority.activate (nano::dev::genesis_key.pub, node1.store.tx_begin_read ());
 	ASSERT_TIMELY (5s, node1.active.election (send1->qualified_root ()));
 	auto election1 = node1.active.election (send1->qualified_root ());
 	ASSERT_EQ (1, node1.active.size ());
@@ -58,7 +60,7 @@ TEST (conflicts, add_existing)
 	ASSERT_TIMELY (5s, node1.block (send1->hash ()));
 
 	// instruct the election scheduler to trigger an election for send1
-	node1.scheduler.activate (nano::dev::genesis_key.pub, node1.store.tx_begin_read ());
+	node1.scheduler.priority.activate (nano::dev::genesis_key.pub, node1.store.tx_begin_read ());
 
 	// wait for election to be started before processing send2
 	ASSERT_TIMELY (5s, node1.active.active (*send1));
@@ -165,7 +167,7 @@ TEST (conflicts, add_two)
 
 	// activate elections for the previous two send blocks (to account3) that we did not forcefully confirm
 	//
-	node->scheduler.activate (account3.pub, node->store.tx_begin_read ());
+	node->scheduler.priority.activate (account3.pub, node->store.tx_begin_read ());
 	ASSERT_TIMELY (5s, node->active.election ((*send3)->qualified_root ()) != nullptr);
 	ASSERT_TIMELY (5s, node->active.election ((*send4)->qualified_root ()) != nullptr);
 
@@ -177,15 +179,13 @@ TEST (conflicts, add_two)
 
 TEST (vote_uniquer, null)
 {
-	nano::block_uniquer block_uniquer;
-	nano::vote_uniquer uniquer (block_uniquer);
+	nano::vote_uniquer uniquer;
 	ASSERT_EQ (nullptr, uniquer.unique (nullptr));
 }
 
 TEST (vote_uniquer, vbh_one)
 {
-	nano::block_uniquer block_uniquer;
-	nano::vote_uniquer uniquer (block_uniquer);
+	nano::vote_uniquer uniquer;
 	nano::keypair key;
 	nano::block_builder builder;
 	auto block = builder
@@ -208,8 +208,7 @@ TEST (vote_uniquer, vbh_one)
 
 TEST (vote_uniquer, vbh_two)
 {
-	nano::block_uniquer block_uniquer;
-	nano::vote_uniquer uniquer (block_uniquer);
+	nano::vote_uniquer uniquer;
 	nano::keypair key;
 	nano::block_builder builder;
 	auto block1 = builder
@@ -244,8 +243,7 @@ TEST (vote_uniquer, vbh_two)
 
 TEST (vote_uniquer, cleanup)
 {
-	nano::block_uniquer block_uniquer;
-	nano::vote_uniquer uniquer (block_uniquer);
+	nano::vote_uniquer uniquer;
 	nano::keypair key;
 	auto vote1 = std::make_shared<nano::vote> (key.pub, key.prv, 0, 0, std::vector<nano::block_hash>{ nano::block_hash{ 0 } });
 	auto vote2 = std::make_shared<nano::vote> (key.pub, key.prv, nano::vote::timestamp_min * 1, 0, std::vector<nano::block_hash>{ nano::block_hash{ 0 } });
@@ -254,10 +252,7 @@ TEST (vote_uniquer, cleanup)
 	vote2.reset ();
 	vote4.reset ();
 	ASSERT_EQ (2, uniquer.size ());
-	auto iterations (0);
-	while (uniquer.size () == 2)
-	{
-		auto vote5 (uniquer.unique (vote1));
-		ASSERT_LT (iterations++, 200);
-	}
+	std::this_thread::sleep_for (nano::block_uniquer::cleanup_cutoff);
+	auto vote5 = uniquer.unique (vote1);
+	ASSERT_EQ (1, uniquer.size ());
 }

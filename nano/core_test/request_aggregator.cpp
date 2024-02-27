@@ -12,7 +12,7 @@ using namespace std::chrono_literals;
 TEST (request_aggregator, one)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config = system.default_config ();
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -58,7 +58,7 @@ TEST (request_aggregator, one)
 TEST (request_aggregator, one_update)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config = system.default_config ();
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -124,7 +124,7 @@ TEST (request_aggregator, one_update)
 TEST (request_aggregator, two)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config = system.default_config ();
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -197,12 +197,12 @@ TEST (request_aggregator, two)
 TEST (request_aggregator, two_endpoints)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config = system.default_config ();
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	nano::node_flags node_flags;
 	node_flags.disable_rep_crawler = true;
 	auto & node1 (*system.add_node (node_config, node_flags));
-	node_config.peering_port = nano::test::get_available_port ();
+	node_config.peering_port = system.get_available_port ();
 	auto & node2 (*system.add_node (node_config, node_flags));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	nano::block_builder builder;
@@ -256,7 +256,7 @@ TEST (request_aggregator, split)
 {
 	constexpr size_t max_vbh = nano::network::confirm_ack_hashes_max;
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config = system.default_config ();
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -283,9 +283,9 @@ TEST (request_aggregator, split)
 		request.emplace_back (block->hash (), block->root ());
 	}
 	// Confirm all blocks
-	node.block_confirm (blocks.back ());
-	auto election (node.active.election (blocks.back ()->qualified_root ()));
-	ASSERT_NE (nullptr, election);
+	node.start_election (blocks.back ());
+	std::shared_ptr<nano::election> election;
+	ASSERT_TIMELY (5s, election = node.active.election (blocks.back ()->qualified_root ()));
 	election->force_confirm ();
 	ASSERT_TIMELY (5s, max_vbh + 2 == node.ledger.cache.cemented_count);
 	ASSERT_EQ (max_vbh + 1, request.size ());
@@ -310,7 +310,7 @@ TEST (request_aggregator, split)
 TEST (request_aggregator, channel_lifetime)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config = system.default_config ();
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -341,7 +341,7 @@ TEST (request_aggregator, channel_lifetime)
 TEST (request_aggregator, channel_update)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config = system.default_config ();
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -380,7 +380,7 @@ TEST (request_aggregator, channel_update)
 TEST (request_aggregator, channel_max_queue)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config = system.default_config ();
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	node_config.max_queued_requests = 1;
 	auto & node (*system.add_node (node_config));
@@ -409,7 +409,7 @@ TEST (request_aggregator, channel_max_queue)
 TEST (request_aggregator, unique)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config = system.default_config ();
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -488,7 +488,7 @@ TEST (request_aggregator, cannot_vote)
 	ASSERT_EQ (0, node.stats.count (nano::stat::type::message, nano::stat::detail::confirm_ack, nano::stat::dir::out));
 
 	// With an ongoing election
-	node.block_confirm (send2);
+	node.start_election (send2);
 	node.aggregator.add (dummy_channel, request);
 	ASSERT_EQ (1, node.aggregator.size ());
 	ASSERT_TIMELY (3s, node.aggregator.empty ());
@@ -501,9 +501,9 @@ TEST (request_aggregator, cannot_vote)
 	ASSERT_EQ (0, node.stats.count (nano::stat::type::message, nano::stat::detail::confirm_ack, nano::stat::dir::out));
 
 	// Confirm send1
-	node.block_confirm (send1);
-	auto election (node.active.election (send1->qualified_root ()));
-	ASSERT_NE (nullptr, election);
+	node.start_election (send1);
+	std::shared_ptr<nano::election> election;
+	ASSERT_TIMELY (5s, election = node.active.election (send1->qualified_root ()));
 	election->force_confirm ();
 	ASSERT_TIMELY (3s, node.ledger.dependents_confirmed (node.store.tx_begin_read (), *send2));
 	node.aggregator.add (dummy_channel, request);

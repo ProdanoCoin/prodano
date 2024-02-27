@@ -464,6 +464,7 @@ nano::transport::tcp_server::realtime_message_visitor::realtime_message_visitor 
 void nano::transport::tcp_server::realtime_message_visitor::keepalive (const nano::keepalive & message)
 {
 	process = true;
+	server.set_last_keepalive (message);
 }
 
 void nano::transport::tcp_server::realtime_message_visitor::publish (const nano::publish & message)
@@ -570,7 +571,7 @@ void nano::transport::tcp_server::bootstrap_message_visitor::bulk_pull_account (
 
 	if (node->config.logging.bulk_pull_logging ())
 	{
-		node->logger.try_log (boost::str (boost::format ("Received bulk pull account for %1% with a minimum amount of %2%") % message.account.to_account () % nano::amount (message.minimum_amount).format_balance (nano::BAN_ratio, 10, true)));
+		node->logger.try_log (boost::str (boost::format ("Received bulk pull account for %1% with a minimum amount of %2%") % message.account.to_account () % nano::amount (message.minimum_amount).format_balance (nano::Mxrb_ratio, 10, true)));
 	}
 
 	node->bootstrap_workers.push_task ([server = server, message = message] () {
@@ -640,6 +641,15 @@ void nano::transport::tcp_server::timeout ()
 			node->tcp_listener.connections.erase (this);
 		}
 		socket->close ();
+	}
+}
+
+void nano::transport::tcp_server::set_last_keepalive (nano::keepalive const & message)
+{
+	std::lock_guard<nano::mutex> lock{ mutex };
+	if (!last_keepalive)
+	{
+		last_keepalive = message;
 	}
 }
 

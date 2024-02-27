@@ -124,11 +124,6 @@ bool nano::election::state_change (nano::election::state_t expected_a, nano::ele
 	return result;
 }
 
-bool nano::election::confirmed (nano::unique_lock<nano::mutex> & lock) const
-{
-	return node.block_confirmed (status.winner->hash ());
-}
-
 std::chrono::milliseconds nano::election::confirm_req_time () const
 {
 	switch (behavior ())
@@ -197,6 +192,24 @@ void nano::election::broadcast_vote ()
 		broadcast_vote_impl (lock);
 		last_vote = std::chrono::steady_clock::now ();
 	}
+}
+
+nano::vote_info nano::election::get_last_vote (nano::account const & account)
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	return last_votes[account];
+}
+
+void nano::election::set_last_vote (nano::account const & account, nano::vote_info vote_info)
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	last_votes[account] = vote_info;
+}
+
+nano::election_status nano::election::get_status () const
+{
+	nano::lock_guard<nano::mutex> guard{ mutex };
+	return status;
 }
 
 bool nano::election::transition_time (nano::confirmation_solicitor & solicitor_a)
@@ -367,6 +380,41 @@ void nano::election::confirm_if_quorum (nano::unique_lock<nano::mutex> & lock_a)
 	}
 }
 
+boost::optional<nano::election_status_type> nano::election::try_confirm (nano::block_hash const & hash)
+{
+	boost::optional<nano::election_status_type> status_type;
+	nano::unique_lock<nano::mutex> election_lock{ mutex };
+	auto winner = status.winner;
+	if (winner && winner->hash () == hash)
+	{
+		// Determine if the block was confirmed explicitly via election confirmation or implicitly via confirmation height
+		if (!confirmed ())
+		{
+			confirm_once (election_lock, nano::election_status_type::active_confirmation_height);
+			status_type = nano::election_status_type::active_confirmation_height;
+		}
+		else
+		{
+			status_type = nano::election_status_type::active_confirmed_quorum;
+		}
+	}
+	else
+	{
+		status_type = boost::optional<nano::election_status_type>{};
+	}
+	return status_type;
+}
+
+nano::election_status nano::election::set_status_type (nano::election_status_type status_type)
+{
+	nano::unique_lock<nano::mutex> election_lk{ mutex };
+	status.type = status_type;
+	status.confirmation_request_count = confirmation_request_count;
+	nano::election_status status_l{ status };
+	election_lk.unlock ();
+	return status_l;
+}
+
 void nano::election::log_votes (nano::tally_t const & tally_a, std::string const & prefix_a) const
 {
 	std::stringstream tally;
@@ -442,7 +490,7 @@ nano::election_vote_result nano::election::vote (nano::account const & rep, uint
 
 	node.stats.inc (nano::stat::type::election, vote_source_a == vote_source::live ? nano::stat::detail::vote_new : nano::stat::detail::vote_cached);
 
-	if (!confirmed (lock))
+	if (!confirmed ())
 	{
 		confirm_if_quorum (lock);
 	}
@@ -551,17 +599,10 @@ void nano::election::remove_block (nano::block_hash const & hash_a)
 	{
 		if (auto existing = last_blocks.find (hash_a); existing != last_blocks.end ())
 		{
-			for (auto i (last_votes.begin ()); i != last_votes.end ();)
-			{
-				if (i->second.hash == hash_a)
-				{
-					i = last_votes.erase (i);
-				}
-				else
-				{
-					++i;
-				}
-			}
+			erase_if (last_votes, [hash_a] (auto const & entry) {
+				return entry.second.hash == hash_a;
+			});
+
 			node.network.publish_filter.clear (existing->second);
 			last_blocks.erase (hash_a);
 		}
@@ -581,8 +622,8 @@ bool nano::election::replace_by_weight (nano::unique_lock<nano::mutex> & lock_a,
 	// Sort in ascending order
 	std::sort (sorted.begin (), sorted.end (), [] (auto const & left, auto const & right) { return left.second < right.second; });
 	// Replace if lowest tally is below inactive cache new block weight
-	auto inactive_existing = node.inactive_vote_cache.find (hash_a);
-	auto inactive_tally = inactive_existing ? inactive_existing->tally : 0;
+	auto inactive_existing = node.vote_cache.find (hash_a);
+	auto inactive_tally = inactive_existing ? inactive_existing->tally () : 0;
 	if (inactive_tally > 0 && sorted.size () < max_blocks)
 	{
 		// If count of tally items is less than 10, remove any block without tally

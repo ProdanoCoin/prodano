@@ -130,7 +130,7 @@ TEST (rpc, receivable_unconfirmed)
 {
 	nano::test::system system;
 	nano::node_config config;
-	config.backlog_scan_batch_size = 0;
+	config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto node = add_ipc_enabled_node (system, config);
 	auto chain = nano::test::setup_chain (system, *node, 1, nano::dev::genesis_key, false);
 	auto block1 = chain[0];
@@ -144,7 +144,7 @@ TEST (rpc, receivable_unconfirmed)
 	ASSERT_TRUE (check_block_response_count (system, rpc_ctx, request, 0));
 	request.put ("include_only_confirmed", "false");
 	ASSERT_TRUE (check_block_response_count (system, rpc_ctx, request, 1));
-	nano::test::confirm (*node, { block1->hash () });
+	ASSERT_TRUE (nano::test::start_elections (system, *node, { block1->hash () }, true));
 	ASSERT_TIMELY (5s, !node->active.active (*block1));
 	request.put ("include_only_confirmed", "true");
 	ASSERT_TRUE (check_block_response_count (system, rpc_ctx, request, 1));
@@ -528,7 +528,7 @@ TEST (rpc, accounts_receivable_confirmed)
 {
 	nano::test::system system;
 	nano::node_config config;
-	config.backlog_scan_batch_size = 0;
+	config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto node = add_ipc_enabled_node (system, config);
 	auto chain = nano::test::setup_chain (system, *node, 1, nano::dev::genesis_key, false);
 	auto block1 = chain[0];
@@ -548,7 +548,7 @@ TEST (rpc, accounts_receivable_confirmed)
 	ASSERT_TRUE (check_block_response_count (system, rpc_ctx, request, 0));
 	request.put ("include_only_confirmed", "false");
 	ASSERT_TRUE (check_block_response_count (system, rpc_ctx, request, 1));
-	nano::test::confirm (*node, { block1->hash () });
+	ASSERT_TRUE (nano::test::start_elections (system, *node, { block1->hash () }, true));
 	ASSERT_TIMELY (5s, !node->active.active (*block1));
 	request.put ("include_only_confirmed", "true");
 	ASSERT_TRUE (check_block_response_count (system, rpc_ctx, request, 1));

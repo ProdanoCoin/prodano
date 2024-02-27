@@ -377,8 +377,6 @@ public:
 			node.logger.try_log (boost::str (boost::format ("Received keepalive message from %1%") % channel->to_string ()));
 		}
 
-		node.network.merge_peers (message_a.peers);
-
 		// Check for special node port data
 		auto peer0 (message_a.peers[0]);
 		if (peer0.address () == boost::asio::ip::address_v6{} && peer0.port () != 0)
@@ -417,20 +415,12 @@ public:
 			{
 				node.logger.try_log (boost::str (boost::format ("Confirm_req message from %1% for hashes:roots %2%") % channel->to_string () % message_a.roots_string ()));
 			}
-			else
-			{
-				node.logger.try_log (boost::str (boost::format ("Confirm_req message from %1% for %2%") % channel->to_string () % message_a.block->hash ().to_string ()));
-			}
 		}
 
 		// Don't load nodes with disabled voting
 		if (node.config.enable_voting && node.wallets.reps ().voting > 0)
 		{
-			if (message_a.block != nullptr)
-			{
-				node.aggregator.add (channel, { { message_a.block->hash (), message_a.block->root () } });
-			}
-			else if (!message_a.roots_hashes.empty ())
+			if (!message_a.roots_hashes.empty ())
 			{
 				node.aggregator.add (channel, message_a.roots_hashes);
 			}

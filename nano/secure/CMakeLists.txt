@@ -39,9 +39,6 @@ add_library(
   ${PLATFORM_SECURE_SOURCE}
   ${CMAKE_BINARY_DIR}/bootstrap_weights_live.cpp
   ${CMAKE_BINARY_DIR}/bootstrap_weights_beta.cpp
-  store.hpp
-  store.cpp
-  buffer.hpp
   common.hpp
   common.cpp
   ledger.hpp
@@ -50,19 +47,11 @@ add_library(
   network_filter.cpp
   utility.hpp
   utility.cpp
-  versioning.hpp
-  versioning.cpp
+  vote.hpp
+  vote.cpp
   working.hpp)
 
-target_link_libraries(
-  secure
-  nano_lib
-  ed25519
-  crypto_lib
-  lmdb
-  Boost::iostreams
-  Boost::system
-  Boost::filesystem)
+target_link_libraries(secure nano_lib ed25519 crypto_lib Boost::system)
 
 target_compile_definitions(secure PUBLIC -DQT_NO_KEYWORDS
                                          -DBOOST_ASIO_HAS_STD_ARRAY=1)

@@ -1,5 +1,9 @@
 #include <nano/lib/config.hpp>
 #include <nano/node/election.hpp>
+#include <nano/node/make_store.hpp>
+#include <nano/node/scheduler/component.hpp>
+#include <nano/node/scheduler/manual.hpp>
+#include <nano/node/scheduler/priority.hpp>
 #include <nano/node/transport/fake.hpp>
 #include <nano/node/transport/inproc.hpp>
 #include <nano/test_common/network.hpp>
@@ -64,12 +68,13 @@ TEST (node, work_generate)
 
 TEST (node, block_store_path_failure)
 {
+	nano::test::system system;
 	auto service (boost::make_shared<boost::asio::io_context> ());
 	auto path (nano::unique_path ());
 	nano::logging logging;
 	logging.init (path);
 	nano::work_pool pool{ nano::dev::network_params.network, std::numeric_limits<unsigned>::max () };
-	auto node (std::make_shared<nano::node> (*service, nano::test::get_available_port (), path, logging, pool));
+	auto node (std::make_shared<nano::node> (*service, system.get_available_port (), path, logging, pool));
 	ASSERT_TRUE (node->wallets.items.empty ());
 	node->stop ();
 }
@@ -94,10 +99,11 @@ TEST (node_DeathTest, readonly_block_store_not_exist)
 
 TEST (node, password_fanout)
 {
+	nano::test::system system;
 	boost::asio::io_context io_ctx;
 	auto path (nano::unique_path ());
 	nano::node_config config;
-	config.peering_port = nano::test::get_available_port ();
+	config.peering_port = system.get_available_port ();
 	config.logging.init (path);
 	nano::work_pool pool{ nano::dev::network_params.network, std::numeric_limits<unsigned>::max () };
 	config.password_fanout = 10;
@@ -264,7 +270,7 @@ TEST (node, node_receive_quorum)
 TEST (node, auto_bootstrap)
 {
 	nano::test::system system;
-	nano::node_config config (nano::test::get_available_port (), system.logging);
+	nano::node_config config (system.get_available_port (), system.logging);
 	config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	nano::node_flags node_flags;
 	node_flags.disable_bootstrap_bulk_push_client = true;
@@ -276,7 +282,7 @@ TEST (node, auto_bootstrap)
 	auto send1 (system.wallet (0)->send_action (nano::dev::genesis_key.pub, key2.pub, node0->config.receive_minimum.number ()));
 	ASSERT_NE (nullptr, send1);
 	ASSERT_TIMELY (10s, node0->balance (key2.pub) == node0->config.receive_minimum.number ());
-	auto node1 (std::make_shared<nano::node> (system.io_ctx, nano::test::get_available_port (), nano::unique_path (), system.logging, system.work, node_flags));
+	auto node1 (std::make_shared<nano::node> (system.io_ctx, system.get_available_port (), nano::unique_path (), system.logging, system.work, node_flags));
 	ASSERT_FALSE (node1->init_error ());
 	node1->start ();
 	system.nodes.push_back (node1);
@@ -296,7 +302,7 @@ TEST (node, auto_bootstrap)
 TEST (node, auto_bootstrap_reverse)
 {
 	nano::test::system system;
-	nano::node_config config (nano::test::get_available_port (), system.logging);
+	nano::node_config config (system.get_available_port (), system.logging);
 	config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	nano::node_flags node_flags;
 	node_flags.disable_bootstrap_bulk_push_client = true;
@@ -305,7 +311,7 @@ TEST (node, auto_bootstrap_reverse)
 	nano::keypair key2;
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	system.wallet (0)->insert_adhoc (key2.prv);
-	auto node1 (std::make_shared<nano::node> (system.io_ctx, nano::test::get_available_port (), nano::unique_path (), system.logging, system.work, node_flags));
+	auto node1 (std::make_shared<nano::node> (system.io_ctx, system.get_available_port (), nano::unique_path (), system.logging, system.work, node_flags));
 	ASSERT_FALSE (node1->init_error ());
 	ASSERT_NE (nullptr, system.wallet (0)->send_action (nano::dev::genesis_key.pub, key2.pub, node0->config.receive_minimum.number ()));
 	node1->start ();
@@ -317,14 +323,14 @@ TEST (node, auto_bootstrap_reverse)
 TEST (node, auto_bootstrap_age)
 {
 	nano::test::system system;
-	nano::node_config config (nano::test::get_available_port (), system.logging);
+	nano::node_config config (system.get_available_port (), system.logging);
 	config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	nano::node_flags node_flags;
 	node_flags.disable_bootstrap_bulk_push_client = true;
 	node_flags.disable_lazy_bootstrap = true;
 	node_flags.bootstrap_interval = 1;
 	auto node0 = system.add_node (config, node_flags);
-	auto node1 (std::make_shared<nano::node> (system.io_ctx, nano::test::get_available_port (), nano::unique_path (), system.logging, system.work, node_flags));
+	auto node1 (std::make_shared<nano::node> (system.io_ctx, system.get_available_port (), nano::unique_path (), system.logging, system.work, node_flags));
 	ASSERT_FALSE (node1->init_error ());
 	node1->start ();
 	system.nodes.push_back (node1);
@@ -363,8 +369,8 @@ TEST (node, merge_peers)
 {
 	nano::test::system system (1);
 	std::array<nano::endpoint, 8> endpoints;
-	endpoints.fill (nano::endpoint (boost::asio::ip::address_v6::loopback (), nano::test::get_available_port ()));
-	endpoints[0] = nano::endpoint (boost::asio::ip::address_v6::loopback (), nano::test::get_available_port ());
+	endpoints.fill (nano::endpoint (boost::asio::ip::address_v6::loopback (), system.get_available_port ()));
+	endpoints[0] = nano::endpoint (boost::asio::ip::address_v6::loopback (), system.get_available_port ());
 	system.nodes[0]->network.merge_peers (endpoints);
 	ASSERT_EQ (0, system.nodes[0]->network.size ());
 }
@@ -414,7 +420,7 @@ TEST (node, search_receivable_multiple)
 TEST (node, search_receivable_confirmed)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto node = system.add_node (node_config);
 	nano::keypair key2;
@@ -448,12 +454,12 @@ TEST (node, search_receivable_confirmed)
 TEST (node, search_receivable_pruned)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto node1 = system.add_node (node_config);
 	nano::node_flags node_flags;
 	node_flags.enable_pruning = true;
-	nano::node_config config (nano::test::get_available_port (), system.logging);
+	nano::node_config config (system.get_available_port (), system.logging);
 	config.enable_voting = false; // Remove after allowing pruned voting
 	auto node2 = system.add_node (config, node_flags);
 	nano::keypair key2;
@@ -759,10 +765,10 @@ TEST (node, fork_multi_flip)
 	auto type = nano::transport::transport_type::tcp;
 	nano::test::system system;
 	nano::node_flags node_flags;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node1 (*system.add_node (node_config, node_flags, type));
-	node_config.peering_port = nano::test::get_available_port ();
+	node_config.peering_port = system.get_available_port ();
 	auto & node2 (*system.add_node (node_config, node_flags, type));
 	ASSERT_EQ (1, node1.network.size ());
 	nano::keypair key1;
@@ -829,15 +835,16 @@ TEST (node, fork_multi_flip)
 // This could happen if a fork wasn't resolved before the process previously shut down
 TEST (node, fork_bootstrap_flip)
 {
+	nano::test::system system;
 	nano::test::system system0;
 	nano::test::system system1;
-	nano::node_config config0{ nano::test::get_available_port (), system0.logging };
+	nano::node_config config0{ system.get_available_port (), system0.logging };
 	config0.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	nano::node_flags node_flags;
 	node_flags.disable_bootstrap_bulk_push_client = true;
 	node_flags.disable_lazy_bootstrap = true;
 	auto & node1 = *system0.add_node (config0, node_flags);
-	nano::node_config config1 (nano::test::get_available_port (), system1.logging);
+	nano::node_config config1 (system.get_available_port (), system1.logging);
 	auto & node2 = *system1.add_node (config1, node_flags);
 	system0.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 	nano::block_hash latest = node1.latest (nano::dev::genesis_key.pub);
@@ -982,7 +989,7 @@ TEST (node, fork_open_flip)
 	// give block open1 to node1, manually trigger an election for open1 and ensure it is in the ledger
 	node1.process_active (open1);
 	ASSERT_TIMELY (5s, node1.block (open1->hash ()) != nullptr);
-	node1.scheduler.manual (open1);
+	node1.scheduler.manual.push (open1);
 	ASSERT_TIMELY (5s, (election = node1.active.election (open1->qualified_root ())) != nullptr);
 	election->transition_active ();
 
@@ -995,7 +1002,7 @@ TEST (node, fork_open_flip)
 
 	// ensure open2 is in node2 ledger (and therefore has sideband) and manually trigger an election for open2
 	ASSERT_TIMELY (5s, node2.block (open2->hash ()) != nullptr);
-	node2.scheduler.manual (open2);
+	node2.scheduler.manual.push (open2);
 	ASSERT_TIMELY (5s, (election = node2.active.election (open2->qualified_root ())) != nullptr);
 	election->transition_active ();
 
@@ -1243,12 +1250,12 @@ TEST (node, DISABLED_broadcast_elected)
 	auto type = nano::transport::transport_type::tcp;
 	nano::node_flags node_flags;
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto node0 = system.add_node (node_config, node_flags, type);
-	node_config.peering_port = nano::test::get_available_port ();
+	node_config.peering_port = system.get_available_port ();
 	auto node1 = system.add_node (node_config, node_flags, type);
-	node_config.peering_port = nano::test::get_available_port ();
+	node_config.peering_port = system.get_available_port ();
 	auto node2 = system.add_node (node_config, node_flags, type);
 	nano::keypair rep_big;
 	nano::keypair rep_small;
@@ -1324,7 +1331,7 @@ TEST (node, DISABLED_broadcast_elected)
 	{
 		auto block (node->block (node->latest (nano::dev::genesis_key.pub)));
 		ASSERT_NE (nullptr, block);
-		node->block_confirm (block);
+		node->start_election (block);
 		auto election (node->active.election (block->qualified_root ()));
 		ASSERT_NE (nullptr, election);
 		election->force_confirm ();
@@ -1369,7 +1376,7 @@ TEST (node, DISABLED_broadcast_elected)
 TEST (node, rep_self_vote)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.online_weight_minimum = std::numeric_limits<nano::uint128_t>::max ();
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto node0 = system.add_node (node_config);
@@ -1392,9 +1399,9 @@ TEST (node, rep_self_vote)
 	ASSERT_EQ (nano::process_result::progress, node0->process (fund_big).code);
 	ASSERT_EQ (nano::process_result::progress, node0->process (open_big).code);
 	// Confirm both blocks, allowing voting on the upcoming block
-	node0->block_confirm (node0->block (open_big.hash ()));
-	auto election = node0->active.election (open_big.qualified_root ());
-	ASSERT_NE (nullptr, election);
+	node0->start_election (node0->block (open_big.hash ()));
+	std::shared_ptr<nano::election> election;
+	ASSERT_TIMELY (5s, election = node0->active.election (open_big.qualified_root ()));
 	election->force_confirm ();
 
 	system.wallet (0)->insert_adhoc (rep_big.prv);
@@ -1410,7 +1417,7 @@ TEST (node, rep_self_vote)
 	ASSERT_EQ (nano::process_result::progress, node0->process (*block0).code);
 	auto & active = node0->active;
 	auto & scheduler = node0->scheduler;
-	scheduler.activate (nano::dev::genesis_key.pub, node0->store.tx_begin_read ());
+	scheduler.priority.activate (nano::dev::genesis_key.pub, node0->store.tx_begin_read ());
 	ASSERT_TIMELY (5s, active.election (block0->qualified_root ()));
 	auto election1 = active.election (block0->qualified_root ());
 	ASSERT_NE (nullptr, election1);
@@ -1464,12 +1471,13 @@ TEST (node, DISABLED_bootstrap_no_publish)
 // Issue for investigating it: https://github.com/nanocurrency/nano-node/issues/3515
 TEST (node, DISABLED_bootstrap_bulk_push)
 {
+	nano::test::system system;
 	nano::test::system system0;
 	nano::test::system system1;
-	nano::node_config config0 (nano::test::get_available_port (), system0.logging);
+	nano::node_config config0 (system.get_available_port (), system0.logging);
 	config0.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto node0 (system0.add_node (config0));
-	nano::node_config config1 (nano::test::get_available_port (), system1.logging);
+	nano::node_config config1 (system.get_available_port (), system1.logging);
 	config1.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto node1 (system1.add_node (config1));
 	nano::keypair key0;
@@ -1506,9 +1514,9 @@ TEST (node, DISABLED_bootstrap_bulk_push)
 TEST (node, bootstrap_fork_open)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	auto node0 = system.add_node (node_config);
-	node_config.peering_port = nano::test::get_available_port ();
+	node_config.peering_port = system.get_available_port ();
 	auto node1 = system.add_node (node_config);
 	nano::keypair key0;
 	nano::block_builder builder;
@@ -1539,7 +1547,7 @@ TEST (node, bootstrap_fork_open)
 	// Confirm send0 to allow starting and voting on the following blocks
 	for (auto node : system.nodes)
 	{
-		node->block_confirm (node->block (node->latest (nano::dev::genesis_key.pub)));
+		node->start_election (node->block (node->latest (nano::dev::genesis_key.pub)));
 		ASSERT_TIMELY (1s, node->active.election (send0.qualified_root ()));
 		auto election = node->active.election (send0.qualified_root ());
 		ASSERT_NE (nullptr, election);
@@ -1679,7 +1687,7 @@ TEST (node, rep_weight)
 {
 	nano::test::system system;
 	auto add_node = [&system] {
-		auto node = std::make_shared<nano::node> (system.io_ctx, nano::test::get_available_port (), nano::unique_path (), system.logging, system.work);
+		auto node = std::make_shared<nano::node> (system.io_ctx, system.get_available_port (), nano::unique_path (), system.logging, system.work);
 		node->start ();
 		system.nodes.push_back (node);
 		return node;
@@ -1849,7 +1857,7 @@ TEST (node, rep_remove)
 	ASSERT_TIMELY (5s, searching_node.rep_crawler.representative_count () == 0);
 
 	// Add working node for genesis representative
-	auto node_genesis_rep = system.add_node (nano::node_config (nano::test::get_available_port (), system.logging));
+	auto node_genesis_rep = system.add_node (nano::node_config (system.get_available_port (), system.logging));
 	system.wallet (1)->insert_adhoc (nano::dev::genesis_key.prv);
 	auto channel_genesis_rep (searching_node.network.find_node_id (node_genesis_rep->get_node_id ()));
 	ASSERT_NE (nullptr, channel_genesis_rep);
@@ -1860,7 +1868,7 @@ TEST (node, rep_remove)
 	ASSERT_TIMELY (10s, searching_node.rep_crawler.representative_count () == 1);
 
 	// Start a node for Rep2 and wait until it is connected
-	auto node_rep2 (std::make_shared<nano::node> (system.io_ctx, nano::unique_path (), nano::node_config (nano::test::get_available_port (), system.logging), system.work));
+	auto node_rep2 (std::make_shared<nano::node> (system.io_ctx, nano::unique_path (), nano::node_config (system.get_available_port (), system.logging), system.work));
 	node_rep2->start ();
 	searching_node.network.tcp_channels.start_tcp (node_rep2->network.endpoint ());
 	std::shared_ptr<nano::transport::channel> channel_rep2;
@@ -1901,7 +1909,7 @@ TEST (node, no_voting)
 {
 	nano::test::system system (1);
 	auto & node0 (*system.nodes[0]);
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.enable_voting = false;
 	system.add_node (node_config);
 
@@ -2135,15 +2143,17 @@ TEST (node, block_confirm)
 	auto send1_copy = builder.make_block ()
 					  .from (*send1)
 					  .build_shared ();
+	auto hash1 = send1->hash ();
+	auto hash2 = send1_copy->hash ();
 	node1.block_processor.add (send1);
 	node2.block_processor.add (send1_copy);
 	ASSERT_TIMELY (5s, node1.ledger.block_or_pruned_exists (send1->hash ()) && node2.ledger.block_or_pruned_exists (send1_copy->hash ()));
 	ASSERT_TRUE (node1.ledger.block_or_pruned_exists (send1->hash ()));
 	ASSERT_TRUE (node2.ledger.block_or_pruned_exists (send1_copy->hash ()));
 	// Confirm send1 on node2 so it can vote for send2
-	node2.block_confirm (send1_copy);
-	auto election = node2.active.election (send1_copy->qualified_root ());
-	ASSERT_NE (nullptr, election);
+	node2.start_election (send1_copy);
+	std::shared_ptr<nano::election> election;
+	ASSERT_TIMELY (5s, election = node2.active.election (send1_copy->qualified_root ()));
 	ASSERT_TIMELY (10s, node1.active.recently_cemented.list ().size () == 1);
 }
 
@@ -2223,7 +2233,7 @@ TEST (node, confirm_quorum)
 TEST (node, local_votes_cache)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	node_config.receive_minimum = nano::dev::constants.genesis_amount;
 	auto & node (*system.add_node (node_config));
@@ -2261,14 +2271,14 @@ TEST (node, local_votes_cache)
 		ASSERT_EQ (nano::process_result::progress, node.ledger.process (transaction, *send2).code);
 	}
 	// Confirm blocks to allow voting
-	node.block_confirm (send2);
-	auto election = node.active.election (send2->qualified_root ());
-	ASSERT_NE (nullptr, election);
+	node.start_election (send2);
+	std::shared_ptr<nano::election> election;
+	ASSERT_TIMELY (5s, election = node.active.election (send2->qualified_root ()));
 	election->force_confirm ();
 	ASSERT_TIMELY (3s, node.ledger.cache.cemented_count == 3);
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
-	nano::confirm_req message1{ nano::dev::network_params.network, send1 };
-	nano::confirm_req message2{ nano::dev::network_params.network, send2 };
+	nano::confirm_req message1{ nano::dev::network_params.network, send1->hash (), send1->root () };
+	nano::confirm_req message2{ nano::dev::network_params.network, send2->hash (), send2->root () };
 	auto channel = std::make_shared<nano::transport::fake::channel> (node);
 	node.network.inbound (message1, channel);
 	ASSERT_TIMELY (3s, node.stats.count (nano::stat::type::requests, nano::stat::detail::requests_generated_votes) == 1);
@@ -2290,7 +2300,7 @@ TEST (node, local_votes_cache)
 		auto transaction (node.store.tx_begin_write ());
 		ASSERT_EQ (nano::process_result::progress, node.ledger.process (transaction, *send3).code);
 	}
-	nano::confirm_req message3{ nano::dev::network_params.network, send3 };
+	nano::confirm_req message3{ nano::dev::network_params.network, send3->hash (), send3->root () };
 	for (auto i (0); i < 100; ++i)
 	{
 		node.network.inbound (message3, channel);
@@ -2311,7 +2321,7 @@ TEST (node, local_votes_cache)
 TEST (node, DISABLED_local_votes_cache_batch)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node (*system.add_node (node_config));
 	ASSERT_GE (node.network_params.voting.max_cache, 2);
@@ -2384,13 +2394,13 @@ TEST (node, DISABLED_local_votes_cache_batch)
 TEST (node, local_votes_cache_generate_new_vote)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node (*system.add_node (node_config));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 
 	// Send a confirm req for genesis block to node
-	nano::confirm_req message1{ nano::dev::network_params.network, nano::dev::genesis };
+	nano::confirm_req message1{ nano::dev::network_params.network, nano::dev::genesis->hash (), nano::dev::genesis->root () };
 	auto channel = std::make_shared<nano::transport::fake::channel> (node);
 	node.network.inbound (message1, channel);
 
@@ -2437,7 +2447,7 @@ TEST (node, local_votes_cache_fork)
 	node_flags.disable_lazy_bootstrap = true;
 	node_flags.disable_legacy_bootstrap = true;
 	node_flags.disable_wallet_bootstrap = true;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node1 (*system.add_node (node_config, node_flags));
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -2468,7 +2478,7 @@ TEST (node, local_votes_cache_fork)
 	ASSERT_EQ (1, votes2.size ());
 	ASSERT_EQ (1, votes2[0]->hashes.size ());
 	// Start election for forked block
-	node_config.peering_port = nano::test::get_available_port ();
+	node_config.peering_port = system.get_available_port ();
 	auto & node2 (*system.add_node (node_config, node_flags));
 	node2.process_active (send1_fork);
 	node2.block_processor.flush ();
@@ -2567,7 +2577,7 @@ TEST (node, vote_by_hash_bundle)
 	}
 
 	// Confirming last block will confirm whole chain and allow us to generate votes for those blocks later
-	ASSERT_TIMELY (5s, nano::test::confirm (node, { blocks.back () }));
+	ASSERT_TRUE (nano::test::start_elections (system, node, { blocks.back () }, true));
 	ASSERT_TIMELY (5s, nano::test::confirmed (node, { blocks.back () }));
 
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
@@ -2688,10 +2698,10 @@ TEST (node, DISABLED_vote_by_hash_epoch_block_republish)
 TEST (node, epoch_conflict_confirm)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node0 = *system.add_node (node_config);
-	node_config.peering_port = nano::test::get_available_port ();
+	node_config.peering_port = system.get_available_port ();
 	auto & node1 = *system.add_node (node_config);
 	nano::keypair key;
 	nano::keypair epoch_signer (nano::dev::genesis_key);
@@ -2746,7 +2756,7 @@ TEST (node, epoch_conflict_confirm)
 	ASSERT_TRUE (nano::test::process (node1, { send, send2, open }));
 
 	// Confirm open block in node1 to allow generating votes
-	ASSERT_TIMELY (5s, nano::test::confirm (node1, { open }));
+	ASSERT_TRUE (nano::test::start_elections (system, node1, { open }, true));
 	ASSERT_TIMELY (5s, nano::test::confirmed (node1, { open }));
 
 	// Process initial blocks on node0
@@ -2760,7 +2770,7 @@ TEST (node, epoch_conflict_confirm)
 	ASSERT_TIMELY (5s, nano::test::exists (node1, { change, epoch_open }));
 
 	// Confirm initial blocks in node1 to allow generating votes later
-	ASSERT_TIMELY (5s, nano::test::confirm (node1, { change, epoch_open, send2 }));
+	ASSERT_TRUE (nano::test::start_elections (system, node1, { change, epoch_open, send2 }, true));
 	ASSERT_TIMELY (5s, nano::test::confirmed (node1, { change, epoch_open, send2 }));
 
 	// Start elections for node0 for conflicting change and epoch_open blocks (those two blocks have the same root)
@@ -2924,7 +2934,7 @@ TEST (node, block_processor_signatures)
 				 .account (nano::dev::genesis_key.pub)
 				 .previous (send3->hash ())
 				 .representative (nano::dev::genesis_key.pub)
-				 .balance (nano::dev::constants.genesis_amount - 5 * nano::MBAN_ratio)
+				 .balance (nano::dev::constants.genesis_amount - 5 * nano::Gxrb_ratio)
 				 .link (key3.pub)
 				 .sign (nano::dev::genesis_key.prv, nano::dev::genesis_key.pub)
 				 .work (*node1.work_generate_blocking (send3->hash ()))
@@ -3019,7 +3029,7 @@ TEST (node, block_processor_full)
 	nano::node_flags node_flags;
 	node_flags.force_use_write_database_queue = true;
 	node_flags.block_processor_full_size = 3;
-	auto & node = *system.add_node (nano::node_config (nano::test::get_available_port (), system.logging), node_flags);
+	auto & node = *system.add_node (nano::node_config (system.get_available_port (), system.logging), node_flags);
 	nano::state_block_builder builder;
 	auto send1 = builder.make_block ()
 				 .account (nano::dev::genesis_key.pub)
@@ -3064,7 +3074,7 @@ TEST (node, block_processor_half_full)
 	nano::node_flags node_flags;
 	node_flags.block_processor_full_size = 6;
 	node_flags.force_use_write_database_queue = true;
-	auto & node = *system.add_node (nano::node_config (nano::test::get_available_port (), system.logging), node_flags);
+	auto & node = *system.add_node (nano::node_config (system.get_available_port (), system.logging), node_flags);
 	nano::state_block_builder builder;
 	auto send1 = builder.make_block ()
 				 .account (nano::dev::genesis_key.pub)
@@ -3141,7 +3151,7 @@ TEST (node, confirm_back)
 	node.process_active (open);
 	node.process_active (send2);
 	ASSERT_TIMELY (5s, node.block (send2->hash ()) != nullptr);
-	nano::test::start_elections (system, node, { send1, open, send2 });
+	ASSERT_TRUE (nano::test::start_elections (system, node, { send1, open, send2 }));
 	ASSERT_EQ (3, node.active.size ());
 	std::vector<nano::block_hash> vote_blocks;
 	vote_blocks.push_back (send2->hash ());
@@ -3156,7 +3166,7 @@ TEST (node, peers)
 	auto node1 (system.nodes[0]);
 	ASSERT_TRUE (node1->network.empty ());
 
-	auto node2 (std::make_shared<nano::node> (system.io_ctx, nano::test::get_available_port (), nano::unique_path (), system.logging, system.work));
+	auto node2 (std::make_shared<nano::node> (system.io_ctx, system.get_available_port (), nano::unique_path (), system.logging, system.work));
 	system.nodes.push_back (node2);
 
 	auto endpoint = node1->network.endpoint ();
@@ -3206,7 +3216,7 @@ TEST (node, peer_cache_restart)
 	nano::endpoint_key endpoint_key{ endpoint.address ().to_v6 ().to_bytes (), endpoint.port () };
 	auto path (nano::unique_path ());
 	{
-		auto node2 (std::make_shared<nano::node> (system.io_ctx, nano::test::get_available_port (), path, system.logging, system.work));
+		auto node2 (std::make_shared<nano::node> (system.io_ctx, system.get_available_port (), path, system.logging, system.work));
 		system.nodes.push_back (node2);
 		auto & store = node2->store;
 		{
@@ -3226,7 +3236,7 @@ TEST (node, peer_cache_restart)
 	{
 		nano::node_flags node_flags;
 		node_flags.read_only = true;
-		auto node3 (std::make_shared<nano::node> (system.io_ctx, nano::test::get_available_port (), path, system.logging, system.work, node_flags));
+		auto node3 (std::make_shared<nano::node> (system.io_ctx, system.get_available_port (), path, system.logging, system.work, node_flags));
 		system.nodes.push_back (node3);
 		// Check cached peers after restart
 		node3->network.start ();
@@ -3331,10 +3341,10 @@ TEST (node, bidirectional_tcp)
 	node_flags.disable_legacy_bootstrap = true;
 	node_flags.disable_lazy_bootstrap = true;
 	node_flags.disable_wallet_bootstrap = true;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto node1 = system.add_node (node_config, node_flags);
-	node_config.peering_port = nano::test::get_available_port ();
+	node_config.peering_port = system.get_available_port ();
 	node_config.tcp_incoming_connections_max = 0; // Disable incoming TCP connections for node 2
 	auto node2 = system.add_node (node_config, node_flags);
 	// Check network connections
@@ -3475,7 +3485,7 @@ TEST (node, rollback_vote_self)
 
 	// Process and mark the first 2 blocks as confirmed to allow voting
 	ASSERT_TRUE (nano::test::process (node, { send1, open }));
-	ASSERT_TIMELY (5s, nano::test::confirm (node, { send1, open }));
+	ASSERT_TRUE (nano::test::start_elections (system, node, { send1, open }, true));
 	ASSERT_TIMELY (5s, node.ledger.cache.cemented_count == 3);
 
 	// wait until the rep weights have caught up with the weight transfer
@@ -3529,7 +3539,7 @@ TEST (node, rollback_vote_self)
 TEST (node, rollback_gap_source)
 {
 	nano::test::system system;
-	nano::node_config node_config (nano::test::get_available_port (), system.logging);
+	nano::node_config node_config (system.get_available_port (), system.logging);
 	node_config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node = *system.add_node (node_config);
 	nano::state_block_builder builder;
@@ -3597,7 +3607,7 @@ TEST (node, rollback_gap_source)
 TEST (node, dependency_graph)
 {
 	nano::test::system system;
-	nano::node_config config (nano::test::get_available_port (), system.logging);
+	nano::node_config config (system.get_available_port (), system.logging);
 	config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node = *system.add_node (config);
 
@@ -3762,7 +3772,7 @@ TEST (node, dependency_graph)
 
 	// Start an election for the first block of the dependency graph, and ensure all blocks are eventually confirmed
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
-	node.block_confirm (gen_send1);
+	node.start_election (gen_send1);
 
 	ASSERT_NO_ERROR (system.poll_until_true (15s, [&] {
 		// Not many blocks should be active simultaneously
@@ -3795,10 +3805,10 @@ TEST (node, dependency_graph)
 TEST (node, dependency_graph_frontier)
 {
 	nano::test::system system;
-	nano::node_config config (nano::test::get_available_port (), system.logging);
+	nano::node_config config (system.get_available_port (), system.logging);
 	config.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	auto & node1 = *system.add_node (config);
-	config.peering_port = nano::test::get_available_port ();
+	config.peering_port = system.get_available_port ();
 	config.frontiers_confirmation = nano::frontiers_confirmation_mode::always;
 	auto & node2 = *system.add_node (config);
 
@@ -3951,7 +3961,7 @@ TEST (node, dependency_graph_frontier)
 	system.wallet (0)->insert_adhoc (nano::dev::genesis_key.prv);
 
 	ASSERT_TIMELY (10s, node2.active.active (gen_send1->qualified_root ()));
-	node1.block_confirm (gen_send1);
+	node1.start_election (gen_send1);
 
 	ASSERT_TIMELY (15s, node1.ledger.cache.cemented_count == node1.ledger.cache.block_count);
 	ASSERT_TIMELY (15s, node2.ledger.cache.cemented_count == node2.ledger.cache.block_count);
@@ -3962,9 +3972,9 @@ namespace nano
 TEST (node, deferred_dependent_elections)
 {
 	nano::test::system system;
-	nano::node_config node_config_1{ nano::test::get_available_port (), system.logging };
+	nano::node_config node_config_1{ system.get_available_port (), system.logging };
 	node_config_1.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
-	nano::node_config node_config_2{ nano::test::get_available_port (), system.logging };
+	nano::node_config node_config_2{ system.get_available_port (), system.logging };
 	node_config_2.frontiers_confirmation = nano::frontiers_confirmation_mode::disabled;
 	nano::node_flags flags;
 	flags.disable_request_loop = true;
@@ -4123,7 +4133,7 @@ TEST (node, pruning_automatic)
 {
 	nano::test::system system{};
 
-	nano::node_config node_config{ nano::test::get_available_port (), system.logging };
+	nano::node_config node_config{ system.get_available_port (), system.logging };
 	// TODO: remove after allowing pruned voting
 	node_config.enable_voting = false;
 	node_config.max_pruning_age = std::chrono::seconds (1);
@@ -4178,7 +4188,7 @@ TEST (node, pruning_age)
 {
 	nano::test::system system{};
 
-	nano::node_config node_config{ nano::test::get_available_port (), system.logging };
+	nano::node_config node_config{ system.get_available_port (), system.logging };
 	// TODO: remove after allowing pruned voting
 	node_config.enable_voting = false;
 
@@ -4241,7 +4251,7 @@ TEST (node, pruning_depth)
 {
 	nano::test::system system{};
 
-	nano::node_config node_config{ nano::test::get_available_port (), system.logging };
+	nano::node_config node_config{ system.get_available_port (), system.logging };
 	// TODO: remove after allowing pruned voting
 	node_config.enable_voting = false;
 
@@ -4304,12 +4314,12 @@ TEST (node_config, node_id_private_key_persistence)
 
 	// create the directory and the file
 	auto path = nano::unique_path ();
-	ASSERT_TRUE (boost::filesystem::create_directories (path));
+	ASSERT_TRUE (std::filesystem::create_directories (path));
 	auto priv_key_filename = path / "node_id_private.key";
 
 	// check that the key generated is random when the key does not exist
 	nano::keypair kp1 = nano::load_or_create_node_id (path, logger);
-	boost::filesystem::remove (priv_key_filename);
+	std::filesystem::remove (priv_key_filename);
 	nano::keypair kp2 = nano::load_or_create_node_id (path, logger);
 	ASSERT_NE (kp1.prv, kp2.prv);
 

@@ -38,10 +38,9 @@ add_executable(
   processing_queue.cpp
   processor_service.cpp
   peer_container.cpp
-  prioritization.cpp
+  scheduler_buckets.cpp
   request_aggregator.cpp
   signal_manager.cpp
-  signing.cpp
   socket.cpp
   system.cpp
   telemetry.cpp
@@ -61,17 +60,9 @@ add_executable(
 
 target_compile_definitions(
   core_test PRIVATE -DTAG_VERSION_STRING=${TAG_VERSION_STRING}
-                    -DGIT_COMMIT_HASH=${GIT_COMMIT_HASH} -DCI=${CI_TEST})
+                    -DGIT_COMMIT_HASH=${GIT_COMMIT_HASH})
 
-target_link_libraries(
-  core_test
-  node
-  secure
-  test_common
-  gtest
-  libminiupnpc-static
-  Boost::log_setup
-  Boost::log)
+target_link_libraries(core_test test_common)
 
 include_directories(${CMAKE_SOURCE_DIR}/submodules)
 include_directories(${CMAKE_SOURCE_DIR}/submodules/cpptoml/include)
