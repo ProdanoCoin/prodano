@@ -132,8 +132,8 @@ add_library(
   openclconfig.cpp
   openclwork.hpp
   openclwork.cpp
-  optimistic_scheduler.hpp
   optimistic_scheduler.cpp
+  optimistic_scheduler.hpp
   peer_exclusion.hpp
   peer_exclusion.cpp
   portmapping.hpp
