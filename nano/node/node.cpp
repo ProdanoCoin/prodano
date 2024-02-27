@@ -1,3 +1,4 @@
+#include <nano/lib/convert.hpp>
 #include <nano/lib/stream.hpp>
 #include <nano/lib/threading.hpp>
 #include <nano/lib/tomlconfig.hpp>
